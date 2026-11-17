@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-standalone/
+dist*
+.output
+.vercel/
+.tanstack/
+.project_id
+.node_modules.lock
+.env
+.env.*
+.env*
+*.log

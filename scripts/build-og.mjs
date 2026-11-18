@@ -24,19 +24,19 @@ const PUZZLE = [
 ];
 
 /**
- * Seven large boards: four corners, both side edges, and one tucked behind the title.
- * Centers are far enough apart that the rotated boards do not touch.
+ * Seven large boards staggered through the frame: upper middle, beside the title,
+ * and across the lower half. Rotated bounds stay at least 28px apart.
  */
 function boardPlacements(size) {
   const half = size / 2;
   const centers = [
-    { cx: 80, cy: -40, rotate: -8, opacity: 0.16 },
-    { cx: 1160, cy: -80, rotate: 7, opacity: 0.14 },
-    { cx: -70, cy: 340, rotate: 6, opacity: 0.15 },
-    { cx: 1270, cy: 300, rotate: -8, opacity: 0.17 },
-    { cx: 200, cy: 710, rotate: -6, opacity: 0.16 },
-    { cx: 1140, cy: 730, rotate: 9, opacity: 0.14 },
-    { cx: 630, cy: 200, rotate: -4, opacity: 0.18 },
+    { cx: 430, cy: -15, rotate: -6, opacity: 0.16 },
+    { cx: 880, cy: -30, rotate: 7, opacity: 0.15 },
+    { cx: 175, cy: 355, rotate: -5, opacity: 0.17 },
+    { cx: 1035, cy: 360, rotate: 6, opacity: 0.16 },
+    { cx: 250, cy: 720, rotate: 8, opacity: 0.15 },
+    { cx: 630, cy: 690, rotate: -4, opacity: 0.17 },
+    { cx: 1010, cy: 710, rotate: -7, opacity: 0.14 },
   ];
   const halfBox = (degrees) => {
     const rad = (Math.abs(degrees) * Math.PI) / 180;
@@ -123,16 +123,17 @@ ${shrikhand}
 ${fredoka}
 </style>
 <defs>
-  <radialGradient id="titleGlow" cx="50%" cy="50%" r="50%">
-    <stop offset="0%" stop-color="#1a0b24" stop-opacity="0.94"/>
-    <stop offset="42%" stop-color="#1a0b24" stop-opacity="0.78"/>
-    <stop offset="72%" stop-color="#1a0b24" stop-opacity="0.28"/>
+  <radialGradient id="titleGlow" cx="600" cy="328" r="420" gradientUnits="userSpaceOnUse">
+    <stop offset="0%" stop-color="#1a0b24" stop-opacity="0.9"/>
+    <stop offset="22%" stop-color="#1a0b24" stop-opacity="0.62"/>
+    <stop offset="48%" stop-color="#1a0b24" stop-opacity="0.28"/>
+    <stop offset="72%" stop-color="#1a0b24" stop-opacity="0.08"/>
     <stop offset="100%" stop-color="#1a0b24" stop-opacity="0"/>
   </radialGradient>
 </defs>
 <rect width="1200" height="630" fill="#1a0b24"/>
 ${boards}
-<ellipse cx="600" cy="324" rx="430" ry="168" fill="url(#titleGlow)"/>
+<circle cx="600" cy="328" r="420" fill="url(#titleGlow)"/>
 <text x="600" y="332" text-anchor="middle" dominant-baseline="central" font-family="Shrikhand" font-size="148" fill="#f6c453" style="filter:drop-shadow(0 0 18px #1a0b24)">Nock</text>
 </svg>`;
 }

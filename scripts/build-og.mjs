@@ -23,43 +23,6 @@ const PUZZLE = [
   "385761429",
 ];
 
-/**
- * Five boards from the share-image spec, rotations halved, plus one in the
- * lower center. Positive rotation is clockwise. Rotated bounds stay apart.
- */
-function boardPlacements(size) {
-  const half = size / 2;
-  const centers = [
-    { cx: 8, cy: -24, rotate: 22, opacity: 0.16 },
-    { cx: 36, cy: 548, rotate: -10, opacity: 0.16 },
-    { cx: 470, cy: 128, rotate: 15, opacity: 0.17 },
-    { cx: 940, cy: 500, rotate: -17, opacity: 0.16 },
-    { cx: 1195, cy: -8, rotate: 8, opacity: 0.15 },
-    { cx: 545, cy: 608, rotate: -6, opacity: 0.16 },
-  ];
-  const halfBox = (degrees) => {
-    const rad = (Math.abs(degrees) * Math.PI) / 180;
-    return half * (Math.abs(Math.cos(rad)) + Math.abs(Math.sin(rad)));
-  };
-  for (let i = 0; i < centers.length; i++) {
-    for (let j = i + 1; j < centers.length; j++) {
-      const a = centers[i];
-      const b = centers[j];
-      const gapX = Math.abs(a.cx - b.cx) - halfBox(a.rotate) - halfBox(b.rotate);
-      const gapY = Math.abs(a.cy - b.cy) - halfBox(a.rotate) - halfBox(b.rotate);
-      if (gapX < 28 && gapY < 28) {
-        throw new Error(`boards ${i} and ${j} overlap (gap ${gapX.toFixed(0)}×${gapY.toFixed(0)})`);
-      }
-    }
-  }
-  return centers.map((item) => ({
-    x: item.cx - half,
-    y: item.cy - half,
-    rotate: item.rotate,
-    opacity: item.opacity,
-  }));
-}
-
 async function latinFace(family) {
   const css = await fetch(FONT_CSS, { headers: { "user-agent": FONT_UA } }).then((response) => {
     if (!response.ok) throw new Error(`font css ${response.status}`);
@@ -79,42 +42,9 @@ async function latinFace(family) {
   throw new Error(`no latin face for ${family}`);
 }
 
-function miniBoard(cell) {
-  const gap = cell * 0.12;
-  const pad = gap;
-  const box = cell * 3 + gap * 2;
-  const size = box * 3 + gap * 2 + pad * 2;
-  let boxes = "";
-  let cells = "";
-  for (let b = 0; b < 9; b++) {
-    const br = Math.floor(b / 3);
-    const bc = b % 3;
-    const bx = pad + bc * (box + gap);
-    const by = pad + br * (box + gap);
-    boxes += `<rect x="${bx}" y="${by}" width="${box}" height="${box}" fill="#f6c453" fill-opacity="0.4"/>`;
-    for (let i = 0; i < 9; i++) {
-      const ir = Math.floor(i / 3);
-      const ic = i % 3;
-      const r = br * 3 + ir;
-      const c = bc * 3 + ic;
-      const x = bx + ic * (cell + gap);
-      const y = by + ir * (cell + gap);
-      cells += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${cell}" height="${cell}" fill="#1a0b24"/>`;
-      cells += `<text x="${(x + cell / 2).toFixed(2)}" y="${(y + cell / 2 + cell * 0.06).toFixed(2)}" text-anchor="middle" dominant-baseline="central" font-family="Fredoka" font-weight="600" font-size="${(cell * 0.72).toFixed(2)}" fill="#f6c453">${PUZZLE[r][c]}</text>`;
-    }
-  }
-  return { size, markup: `<rect width="${size}" height="${size}" fill="#f6c453" fill-opacity="0.7"/>${boxes}${cells}` };
-}
-
 function svg(shrikhand, fredoka) {
-  const board = miniBoard(28);
-  const boards = boardPlacements(board.size)
-    .map(
-      (item) =>
-        `<g opacity="${item.opacity}" transform="translate(${item.x} ${item.y}) rotate(${item.rotate} ${board.size / 2} ${board.size / 2})">${board.markup}</g>`,
-    )
-    .join("");
-  console.log(`[nock] board ${Math.round(board.size)}px`);
+  const grid = 1200;
+  const crop = (grid - 630) / 2;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
 <style>
@@ -122,7 +52,7 @@ ${shrikhand}
 ${fredoka}
 </style>
 <defs>
-  <radialGradient id="titleGlow" cx="600" cy="328" r="460" gradientUnits="userSpaceOnUse">
+  <radialGradient id="titleGlow" cx="600" cy="315" r="460" gradientUnits="userSpaceOnUse">
     <stop offset="0%" stop-color="#1a0b24" stop-opacity="0.82"/>
     <stop offset="18%" stop-color="#1a0b24" stop-opacity="0.5"/>
     <stop offset="40%" stop-color="#1a0b24" stop-opacity="0.18"/>
@@ -131,9 +61,9 @@ ${fredoka}
   </radialGradient>
 </defs>
 <rect width="1200" height="630" fill="#1a0b24"/>
-${boards}
+<g opacity="0.17" transform="translate(0 ${-crop})">${edgeBoard(grid)}</g>
 <rect width="1200" height="630" fill="url(#titleGlow)"/>
-<text x="600" y="332" text-anchor="middle" dominant-baseline="central" font-family="Shrikhand" font-size="148" fill="#f6c453">Nock</text>
+<text x="600" y="315" text-anchor="middle" dominant-baseline="central" font-family="Shrikhand" font-size="168" fill="#f6c453">Nock</text>
 </svg>`;
 }
 

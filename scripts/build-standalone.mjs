@@ -98,11 +98,11 @@ async function main() {
 <meta name="description" content="Check a Sudoku, or solve it, right in your browser.">
 <meta property="og:title" content="Nock">
 <meta property="og:description" content="Check a Sudoku, or solve it, right in your browser.">
-<meta property="og:image" content="https://wyatt-davis.github.io/Nock/og.png">
+<meta property="og:image" content="https://wyatt-davis.github.io/Nock/og.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Nock in gold on a dark purple background with faint solved sudoku grids.">
-<meta property="og:image" content="https://wyatt-davis.github.io/Nock/icon-1024.png">
+<meta property="og:image:alt" content="Nock in gold on a dark purple background with a faint solved sudoku grid.">
+<meta property="og:image" content="https://wyatt-davis.github.io/Nock/icon-1024.png?v=2">
 <meta property="og:image:width" content="1024">
 <meta property="og:image:height" content="1024">
 <meta property="og:image:alt" content="Nock app icon, gold title centered on a faint sudoku grid.">
@@ -112,7 +112,7 @@ async function main() {
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Nock">
 <meta name="twitter:description" content="Check a Sudoku, or solve it, right in your browser.">
-<meta name="twitter:image" content="https://wyatt-davis.github.io/Nock/og.png">
+<meta name="twitter:image" content="https://wyatt-davis.github.io/Nock/og.png?v=2">
 <title>Nock</title>
 <link rel="icon" href="${icon}">
 <link rel="icon" type="image/png" sizes="192x192" href="https://wyatt-davis.github.io/Nock/icon-192.png">

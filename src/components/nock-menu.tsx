@@ -52,6 +52,36 @@ const HOTKEY_GROUPS: Array<{ title: string; items: Array<{ keys: string; action:
   },
 ];
 
+function Keycap({ label }: { label: string }) {
+  const compact = [...label].length <= 1;
+  return (
+    <kbd
+      className={`inline-flex h-7 shrink-0 items-center justify-center rounded-md border border-line/40 bg-bg font-semibold text-line ${compact ? "w-7 text-[13px]" : "px-2 text-[12px]"}`}
+    >
+      {label}
+    </kbd>
+  );
+}
+
+function KeyChord({ keys }: { keys: string }) {
+  const combo = keys.includes("+");
+  const parts = combo ? keys.split("+") : keys.split(/\s+/);
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      {parts.map((part, index) => (
+        <span key={`${part}-${index}`} className="inline-flex items-center gap-1">
+          {combo && index > 0 ? (
+            <span aria-hidden className="text-[11px] font-medium text-quiet">
+              +
+            </span>
+          ) : null}
+          <Keycap label={part} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function layout(rect: DOMRect) {
   const width = 176;
   const margin = 8;
@@ -190,7 +220,7 @@ export function NockMenu({
           aria-labelledby="nock-overlay-title"
           tabIndex={-1}
           onMouseDown={(event) => event.stopPropagation()}
-          className="flex max-h-[min(32rem,calc(100dvh-2rem))] w-full max-w-[24rem] flex-col rounded-2xl border-2 border-line bg-surface p-4 shadow-[4px_4px_0_#ff4d8d] outline-none"
+          className={`flex w-full flex-col rounded-2xl border-2 border-line bg-surface shadow-[4px_4px_0_#ff4d8d] outline-none ${panel === "hotkeys" ? "max-h-[min(48rem,calc(100dvh-2rem))] max-w-[30rem] p-4 sm:p-5" : "max-h-[min(32rem,calc(100dvh-2rem))] max-w-[24rem] p-4"}`}
         >
           <p id="nock-overlay-title" className="font-[Outfit,system-ui,sans-serif] text-[15px] font-semibold text-line">
             {panel === "guide" ? "How To Use" : panel === "hotkeys" ? "Keybinds" : "History"}
@@ -206,18 +236,20 @@ export function NockMenu({
               ))}
             </ul>
           ) : panel === "hotkeys" ? (
-            <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-              {HOTKEY_GROUPS.map((group) => (
-                <section key={group.title}>
-                  <h3 className="text-xs font-semibold text-muted">{group.title}</h3>
-                  <ul>
+            <div className="mt-5 min-h-0 flex-1 overflow-auto pr-1">
+              {HOTKEY_GROUPS.map((group, index) => (
+                <section key={group.title} className={index === 0 ? "" : "mt-6 border-t border-line/35 pt-5"}>
+                  <h3 className="text-xs font-semibold tracking-[0.18em] text-muted uppercase">{group.title}</h3>
+                  <dl className="mt-3 space-y-2.5">
                     {group.items.map((item) => (
-                      <li key={item.keys} className="mt-1.5 flex items-baseline justify-between gap-3 text-sm leading-snug whitespace-nowrap">
-                        <span className="font-semibold text-line">{item.keys}</span>
-                        <span className="text-right text-fg">{item.action}</span>
-                      </li>
+                      <div key={item.keys} className="grid grid-cols-[9.85rem_max-content] items-center gap-x-2">
+                        <dt className="m-0">
+                          <KeyChord keys={item.keys} />
+                        </dt>
+                        <dd className="m-0 text-left text-[13px] whitespace-nowrap text-fg sm:text-sm">{item.action}</dd>
+                      </div>
                     ))}
-                  </ul>
+                  </dl>
                 </section>
               ))}
             </div>

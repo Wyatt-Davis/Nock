@@ -24,19 +24,18 @@ const PUZZLE = [
 ];
 
 /**
- * Seven boards in a staggered scatter. Positive rotation is clockwise.
- * Each angle is unique and within ±18°. Rotated bounds stay apart.
+ * Five boards from the share-image spec, rotations halved, plus one in the
+ * lower center. Positive rotation is clockwise. Rotated bounds stay apart.
  */
 function boardPlacements(size) {
   const half = size / 2;
   const centers = [
-    { cx: 170, cy: -55, rotate: 18, opacity: 0.22 },
-    { cx: 600, cy: -70, rotate: -10, opacity: 0.2 },
-    { cx: 1060, cy: -65, rotate: 15, opacity: 0.21 },
-    { cx: 250, cy: 330, rotate: -13, opacity: 0.23 },
-    { cx: 980, cy: 325, rotate: 8, opacity: 0.2 },
-    { cx: 430, cy: 705, rotate: -4, opacity: 0.22 },
-    { cx: 860, cy: 690, rotate: 6, opacity: 0.21 },
+    { cx: 8, cy: -24, rotate: 22, opacity: 0.16 },
+    { cx: 36, cy: 548, rotate: -10, opacity: 0.16 },
+    { cx: 470, cy: 128, rotate: 15, opacity: 0.17 },
+    { cx: 940, cy: 500, rotate: -17, opacity: 0.16 },
+    { cx: 1195, cy: -8, rotate: 8, opacity: 0.15 },
+    { cx: 545, cy: 608, rotate: -6, opacity: 0.16 },
   ];
   const halfBox = (degrees) => {
     const rad = (Math.abs(degrees) * Math.PI) / 180;

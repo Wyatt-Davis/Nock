@@ -24,17 +24,18 @@ const PUZZLE = [
 ];
 
 /**
- * Five boards from the share-image spec. Positive rotation is clockwise.
- * Rotated bounds stay apart except where a corner board must bleed off the frame.
+ * Five boards from the share-image spec, rotations halved, plus one in the
+ * lower center. Positive rotation is clockwise. Rotated bounds stay apart.
  */
 function boardPlacements(size) {
   const half = size / 2;
   const centers = [
-    { cx: 8, cy: -24, rotate: 45, opacity: 0.16 },
-    { cx: 36, cy: 548, rotate: -20, opacity: 0.16 },
-    { cx: 470, cy: 128, rotate: 30, opacity: 0.17 },
-    { cx: 940, cy: 500, rotate: -35, opacity: 0.16 },
-    { cx: 1195, cy: -8, rotate: 15, opacity: 0.15 },
+    { cx: 8, cy: -24, rotate: 22, opacity: 0.16 },
+    { cx: 36, cy: 548, rotate: -10, opacity: 0.16 },
+    { cx: 470, cy: 128, rotate: 15, opacity: 0.17 },
+    { cx: 940, cy: 500, rotate: -17, opacity: 0.16 },
+    { cx: 1195, cy: -8, rotate: 8, opacity: 0.15 },
+    { cx: 545, cy: 608, rotate: -6, opacity: 0.16 },
   ];
   const halfBox = (degrees) => {
     const rad = (Math.abs(degrees) * Math.PI) / 180;

@@ -55,9 +55,9 @@
 | Backspace | Clear answer / step back |
 | Shift+Backspace | Remove clue |
 | Space | Next cell / convert in edit |
-| ← ↑ → ↓ | Move |
+| ← ↑ → ↓ | Move in grid |
 | E | Edit clues |
-| D | Done |
+| D | Done editing |
 | U | Undo |
 | C | Clear answers |
 | R | Reset board |

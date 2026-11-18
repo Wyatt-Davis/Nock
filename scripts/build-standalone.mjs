@@ -102,6 +102,10 @@ async function main() {
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Nock in gold on a dark purple background with faint solved sudoku grids.">
+<meta property="og:image" content="https://wyatt-davis.github.io/Nock/icon-1024.png">
+<meta property="og:image:width" content="1024">
+<meta property="og:image:height" content="1024">
+<meta property="og:image:alt" content="Nock app icon, gold title centered on a faint sudoku grid.">
 <meta property="og:url" content="https://wyatt-davis.github.io/Nock/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Nock">
@@ -111,6 +115,9 @@ async function main() {
 <meta name="twitter:image" content="https://wyatt-davis.github.io/Nock/og.png">
 <title>Nock</title>
 <link rel="icon" href="${icon}">
+<link rel="icon" type="image/png" sizes="192x192" href="https://wyatt-davis.github.io/Nock/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="https://wyatt-davis.github.io/Nock/icon-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="https://wyatt-davis.github.io/Nock/apple-touch-icon.png">
 ${fonts ? `<style>${fonts}</style>\n` : ""}<style>${css}</style>
 </head>
 <body>

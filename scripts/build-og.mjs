@@ -153,8 +153,9 @@ function cdpSend(ws, method, params = {}, sessionId) {
 cdpSend.next = 1;
 cdpSend.pending = new Map();
 
-async function renderPng(html) {
-  const port = 9333;
+async function renderPng(html, width = 1200, height = 630) {
+  const port = 9400 + Math.floor(Math.random() * 400);
+  const profile = `/tmp/nock-og-chrome-${port}`;
   const chrome = spawn(
     chromePath(),
     [
@@ -164,7 +165,7 @@ async function renderPng(html) {
       "--no-sandbox",
       "--disable-dev-shm-usage",
       `--remote-debugging-port=${port}`,
-      "--user-data-dir=/tmp/nock-og-chrome",
+      `--user-data-dir=${profile}`,
       "about:blank",
     ],
     { stdio: "ignore" },
@@ -199,15 +200,16 @@ async function renderPng(html) {
     await cdpSend(
       ws,
       "Emulation.setDeviceMetricsOverride",
-      { width: 1200, height: 630, deviceScaleFactor: 1, mobile: false },
+      { width, height, deviceScaleFactor: 1, mobile: false },
       sessionId,
     );
-    await cdpSend(ws, "Page.setDocumentContent", { frameId: (await cdpSend(ws, "Page.getFrameTree", {}, sessionId)).frameTree.frame.id, html }, sessionId);
+    const frameId = (await cdpSend(ws, "Page.getFrameTree", {}, sessionId)).frameTree.frame.id;
+    await cdpSend(ws, "Page.setDocumentContent", { frameId, html }, sessionId);
     await cdpSend(ws, "Runtime.evaluate", { expression: "document.fonts.ready", awaitPromise: true }, sessionId);
     const shot = await cdpSend(
       ws,
       "Page.captureScreenshot",
-      { format: "png", clip: { x: 0, y: 0, width: 1200, height: 630, scale: 1 }, captureBeyondViewport: true },
+      { format: "png", clip: { x: 0, y: 0, width, height, scale: 1 }, captureBeyondViewport: true },
       sessionId,
     );
     ws.close();
@@ -217,11 +219,86 @@ async function renderPng(html) {
   }
 }
 
+function edgeBoard(size) {
+  const cellGap = size * 0.0065;
+  const boxGap = cellGap * 2.15;
+  const cell = (size - 6 * cellGap - 2 * boxGap) / 9;
+  const box = cell * 3 + cellGap * 2;
+  let markup = `<rect width="${size}" height="${size}" fill="#f6c453" fill-opacity="0.7"/>`;
+  for (let br = 0; br < 3; br++) {
+    for (let bc = 0; bc < 3; bc++) {
+      const bx = bc * (box + boxGap);
+      const by = br * (box + boxGap);
+      markup += `<rect x="${bx.toFixed(2)}" y="${by.toFixed(2)}" width="${box.toFixed(2)}" height="${box.toFixed(2)}" fill="#f6c453" fill-opacity="0.4"/>`;
+      for (let ir = 0; ir < 3; ir++) {
+        for (let ic = 0; ic < 3; ic++) {
+          const r = br * 3 + ir;
+          const c = bc * 3 + ic;
+          const x = bx + ic * (cell + cellGap);
+          const y = by + ir * (cell + cellGap);
+          markup += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${cell.toFixed(2)}" height="${cell.toFixed(2)}" fill="#1a0b24"/>`;
+          markup += `<text x="${(x + cell / 2).toFixed(2)}" y="${(y + cell / 2 + cell * 0.06).toFixed(2)}" text-anchor="middle" dominant-baseline="central" font-family="Fredoka" font-weight="600" font-size="${(cell * 0.62).toFixed(2)}" fill="#f6c453">${PUZZLE[r][c]}</text>`;
+        }
+      }
+    }
+  }
+  return markup;
+}
+
+function squareSvg(shrikhand, fredoka, size, titleRatio) {
+  const title = Math.round(size * titleRatio);
+  const glow = Math.round(size * 0.46);
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+<style>
+${shrikhand}
+${fredoka}
+</style>
+<defs>
+  <radialGradient id="titleGlow" cx="${size / 2}" cy="${size / 2}" r="${glow}" gradientUnits="userSpaceOnUse">
+    <stop offset="0%" stop-color="#1a0b24" stop-opacity="0.82"/>
+    <stop offset="18%" stop-color="#1a0b24" stop-opacity="0.5"/>
+    <stop offset="40%" stop-color="#1a0b24" stop-opacity="0.18"/>
+    <stop offset="62%" stop-color="#1a0b24" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#1a0b24" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="${size}" height="${size}" fill="#1a0b24"/>
+<g opacity="0.17">${edgeBoard(size)}</g>
+<rect width="${size}" height="${size}" fill="url(#titleGlow)"/>
+<text x="${size / 2}" y="${size / 2}" text-anchor="middle" dominant-baseline="central" font-family="Shrikhand" font-size="${title}" fill="#f6c453">Nock</text>
+</svg>`;
+}
+
+function pageHtml(markup) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#1a0b24}</style></head><body>${markup}</body></html>`;
+}
+
+async function buildIcons() {
+  const [shrikhand, fredoka] = await Promise.all([latinFace("Shrikhand"), latinFace("Fredoka")]);
+  const outputs = [
+    { file: "icon-1024.png", size: 1024, title: 0.25 },
+    { file: "icon-512.png", size: 512, title: 0.25 },
+    { file: "icon-192.png", size: 192, title: 0.3 },
+    { file: "apple-touch-icon.png", size: 180, title: 0.34 },
+  ];
+  for (const output of outputs) {
+    const html = pageHtml(squareSvg(shrikhand, fredoka, output.size, output.title));
+    const png = await renderPng(html, output.size, output.size);
+    const file = path.join(root, "public", output.file);
+    await writeFile(file, png);
+    console.log(`[nock] wrote ${file} (${png.length} bytes)`);
+  }
+}
+
 async function main() {
+  if (process.argv.includes("--icons")) {
+    await buildIcons();
+    return;
+  }
   const [shrikhand, fredoka] = await Promise.all([latinFace("Shrikhand"), latinFace("Fredoka")]);
   const markup = svg(shrikhand, fredoka);
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#1a0b24}</style></head><body>${markup}</body></html>`;
-  const png = await renderPng(html);
+  const png = await renderPng(pageHtml(markup));
   await writeFile(target, png);
   console.log(`[nock] wrote ${target} (${png.length} bytes)`);
 }

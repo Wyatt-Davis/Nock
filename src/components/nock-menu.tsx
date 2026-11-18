@@ -22,19 +22,34 @@ const GUIDE: Array<{ title: string; body: string }> = [
   { title: "Reset", body: "Clears the entire board." },
 ];
 
-const HOTKEYS: Array<{ keys: string; action: string; gapBefore?: boolean }> = [
-  { keys: "1–9", action: "Enter answer" },
-  { keys: "Shift+1–9", action: "Enter clue" },
-  { keys: "Shift+Click", action: "Toggle clue / answer" },
-  { keys: "Backspace", action: "Clear answer / step back" },
-  { keys: "Shift+Backspace", action: "Remove clue" },
-  { keys: "Space", action: "Next cell / convert in edit" },
-  { keys: "← ↑ → ↓", action: "Move in grid" },
-  { keys: "E", action: "Edit clues", gapBefore: true },
-  { keys: "D", action: "Done editing" },
-  { keys: "U", action: "Undo", gapBefore: true },
-  { keys: "C", action: "Clear answers" },
-  { keys: "R", action: "Reset board" },
+const HOTKEY_GROUPS: Array<{ title: string; items: Array<{ keys: string; action: string }> }> = [
+  {
+    title: "Entering",
+    items: [
+      { keys: "1–9", action: "Enter answer" },
+      { keys: "Shift+1–9", action: "Enter clue" },
+      { keys: "Shift+Click", action: "Toggle clue / answer" },
+      { keys: "Backspace", action: "Clear answer / step back" },
+      { keys: "Shift+Backspace", action: "Remove clue" },
+      { keys: "Space", action: "Next cell / convert in edit" },
+    ],
+  },
+  {
+    title: "Editing",
+    items: [
+      { keys: "E", action: "Edit clues" },
+      { keys: "D", action: "Done editing" },
+      { keys: "U", action: "Undo" },
+    ],
+  },
+  {
+    title: "Board",
+    items: [
+      { keys: "← ↑ → ↓", action: "Move in grid" },
+      { keys: "C", action: "Clear answers" },
+      { keys: "R", action: "Reset board" },
+    ],
+  },
 ];
 
 function layout(rect: DOMRect) {
@@ -191,17 +206,21 @@ export function NockMenu({
               ))}
             </ul>
           ) : panel === "hotkeys" ? (
-            <ul className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
-              {HOTKEYS.map((item, index) => (
-                <li
-                  key={item.keys}
-                  className={`flex items-baseline justify-between gap-3 text-sm leading-snug whitespace-nowrap ${index === 0 ? "" : item.gapBefore ? "mt-3" : "mt-1.5"}`}
-                >
-                  <span className="font-semibold text-line">{item.keys}</span>
-                  <span className="text-right text-fg">{item.action}</span>
-                </li>
+            <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              {HOTKEY_GROUPS.map((group) => (
+                <section key={group.title}>
+                  <h3 className="text-xs font-semibold text-muted">{group.title}</h3>
+                  <ul>
+                    {group.items.map((item) => (
+                      <li key={item.keys} className="mt-1.5 flex items-baseline justify-between gap-3 text-sm leading-snug whitespace-nowrap">
+                        <span className="font-semibold text-line">{item.keys}</span>
+                        <span className="text-right text-fg">{item.action}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </div>
           ) : (
             <div className="mt-3 flex min-h-0 flex-1 flex-col">
               {history.length === 0 ? (

@@ -48,6 +48,8 @@
 
 ## Keyboard shortcuts
 
+**Entering**
+
 | Key | Action |
 | --- | --- |
 | 1–9 | Enter answer |
@@ -56,10 +58,20 @@
 | Backspace | Clear answer / step back |
 | Shift+Backspace | Remove clue |
 | Space | Next cell / convert in edit |
-| ← ↑ → ↓ | Move in grid |
+
+**Editing**
+
+| Key | Action |
+| --- | --- |
 | E | Edit clues |
 | D | Done editing |
 | U | Undo |
+
+**Board**
+
+| Key | Action |
+| --- | --- |
+| ← ↑ → ↓ | Move in grid |
 | C | Clear answers |
 | R | Reset board |
 

@@ -22,6 +22,7 @@ import {
   NO_UNIQUE_SOLUTION,
   advanceInCells,
   advancePastClues,
+  arrowStep,
   blankMask,
   stepPastClues,
   type Digit,
@@ -740,17 +741,9 @@ export function Proofgrid() {
   }
 
   function moveArrow(r: number, c: number, key: string) {
+    if (key !== "ArrowLeft" && key !== "ArrowRight" && key !== "ArrowUp" && key !== "ArrowDown") return;
     const now = live.current;
-    if (now.placing === "clues") {
-      if (key === "ArrowLeft") move(r, c, -1);
-      else if (key === "ArrowRight") move(r, c, 1);
-      else if (key === "ArrowUp") focusAt((r + 8) % 9, c);
-      else if (key === "ArrowDown") focusAt((r + 1) % 9, c);
-      return;
-    }
-    const dr = key === "ArrowUp" ? -1 : key === "ArrowDown" ? 1 : 0;
-    const dc = key === "ArrowLeft" ? -1 : key === "ArrowRight" ? 1 : 0;
-    const [nr, nc] = stepPastClues(now.givens, r, c, dr, dc);
+    const [nr, nc] = arrowStep(now.givens, r, c, key, now.placing);
     if (nr === r && nc === c) return;
     followUnit(nr, nc);
     focusAt(nr, nc);

@@ -126,6 +126,31 @@ export function advancePastClues(givens: Grid, r: number, c: number, dir: 1 | -1
   return [r, c];
 }
 
+/**
+ * Arrow target. Left and right walk in reading order: the end of a row continues
+ * at the start of the next, and the board wraps. Answer entry skips clues and
+ * stays put when no other answer cell exists. Up and down do not wrap.
+ */
+export function arrowStep(
+  givens: Grid,
+  r: number,
+  c: number,
+  key: "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown",
+  placing: "clues" | "answers",
+): [number, number] {
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    const dr = key === "ArrowUp" ? -1 : 1;
+    if (placing === "clues") return [(r + dr + 9) % 9, c];
+    return stepPastClues(givens, r, c, dr, 0);
+  }
+  const dir = key === "ArrowRight" ? 1 : -1;
+  if (placing === "clues") {
+    const i = (r * 9 + c + dir + 81) % 81;
+    return [Math.floor(i / 9), i % 9];
+  }
+  return advancePastClues(givens, r, c, dir);
+}
+
 /** Next non-clue in one cardinal direction. Does not wrap; stays put when none remains. */
 export function stepPastClues(givens: Grid, r: number, c: number, dr: -1 | 0 | 1, dc: -1 | 0 | 1): [number, number] {
   if (dr === 0 && dc === 0) return [r, c];

@@ -180,6 +180,11 @@ header::selection {
   }
 }
 
+.nock-grid {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 @media (max-width: 839px) {
   .nock-grid-slot {
     container-type: size;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { NockMenu } from "@/components/nock-menu";
 import { clearHistory, readHistory, rememberCheck, type CheckRecord } from "@/lib/check-history";
 import { cn } from "@/lib/cn";
@@ -238,6 +238,7 @@ export function Proofgrid() {
   const [resultUnit, setResultUnit] = useState<{ kind: UnitKind; index: number } | null>(null);
   const [checkedBoard, setCheckedBoard] = useState<Grid | null>(null);
   const closeMenuRef = useRef(() => {});
+  const gridRef = useRef<HTMLDivElement>(null);
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   const skipChange = useRef(false);
   const focusIndexRef = useRef(0);
@@ -342,6 +343,14 @@ export function Proofgrid() {
     const payload: Persisted = { mode, givens, entries, unitKind, unitIndex, placing };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [hydrated, mode, givens, entries, unitKind, unitIndex, placing]);
+
+  useEffect(() => {
+    const node = gridRef.current;
+    if (!node) return;
+    const stopSelect = (event: Event) => event.preventDefault();
+    node.addEventListener("selectstart", stopSelect, true);
+    return () => node.removeEventListener("selectstart", stopSelect, true);
+  }, []);
 
   function resetHistory() {
     past.current = [];
@@ -777,7 +786,7 @@ export function Proofgrid() {
     move(r, c, 1);
   }
 
-  function commitAnswerClue(r: number, c: number, digit: Digit) {
+  function commitAnswerClue(r: number, c: number, digit: Digit, advance = true) {
     const now = live.current;
     if (now.placing === "clues") return;
     const next = applyAnswerClue(now.givens, now.entries, r, c, digit);
@@ -787,7 +796,40 @@ export function Proofgrid() {
       setGivens(next.givens);
       setEntries(next.entries);
     }
-    move(r, c, 1);
+    if (advance) move(r, c, 1);
+  }
+
+  /** Shift+click promotes a typed answer to a clue. Empty cells and clues only select. */
+  function onCellPointerDown(event: ReactPointerEvent<HTMLInputElement>, r: number, c: number) {
+    const shiftClick = event.shiftKey && event.button === 0;
+    if (!shiftClick) {
+      if (live.current.placing === "clues") toggleResponse(r, c);
+      chooseUnit(r, c);
+      return;
+    }
+    event.preventDefault();
+    dropSelection();
+    const now = live.current;
+    const entry = now.entries[r][c];
+    if (now.givens[r][c] == null && entry != null) {
+      if (now.placing === "clues") toggleResponse(r, c);
+      else commitAnswerClue(r, c, entry, false);
+    }
+    focusAt(r, c);
+    chooseUnit(r, c);
+  }
+
+  function onCellMouseDown(event: ReactMouseEvent<HTMLInputElement>, r: number, c: number) {
+    if (!event.shiftKey || event.button !== 0) return;
+    event.preventDefault();
+    dropSelection();
+    focusAt(r, c);
+  }
+
+  function onGridMouseDown(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!event.shiftKey || event.button !== 0) return;
+    event.preventDefault();
+    dropSelection();
   }
 
   function removeAnswerClue(r: number, c: number) {
@@ -1213,9 +1255,11 @@ export function Proofgrid() {
           <div className="nock-grid-slot relative flex min-h-0 flex-1 items-start justify-center p-2 min-[840px]:block min-[840px]:flex-none min-[840px]:self-start min-[840px]:px-6 min-[840px]:pt-6 min-[840px]:pb-14">
             <div className="relative mx-auto w-[min(100cqw,calc(100cqh-3rem),420px)] max-w-full min-[840px]:w-[min(62vw,420px)]">
             <div
+              ref={gridRef}
               role="grid"
               aria-label="Sudoku grid"
-              className="nock-grid aspect-square w-full overflow-hidden rounded-none border-4 border-line bg-line"
+              onMouseDown={onGridMouseDown}
+              className="nock-grid aspect-square w-full overflow-hidden rounded-none border-4 border-line bg-line select-none"
             >
               <div className="grid h-full grid-cols-3 gap-[4px] bg-line">
                 {Array.from({ length: 9 }, (_, box) => (
@@ -1266,10 +1310,8 @@ export function Proofgrid() {
                           tabIndex={r * 9 + c === focusIndex ? 1 : -1}
                           value={value ?? ""}
                           style={{ caretColor: "transparent" }}
-                          onPointerDown={() => {
-                            if (clueLayer) toggleResponse(r, c);
-                            chooseUnit(r, c);
-                          }}
+                          onPointerDown={(event) => onCellPointerDown(event, r, c)}
+                          onMouseDown={(event) => onCellMouseDown(event, r, c)}
                           onFocus={(event) => {
                             const field = event.currentTarget;
                             const i = r * 9 + c;

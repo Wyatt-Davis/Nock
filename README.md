@@ -52,6 +52,7 @@
 | --- | --- |
 | 1–9 | Enter answer |
 | Shift+1–9 | Enter clue |
+| Shift+Click | Answer to clue |
 | Backspace | Clear answer / step back |
 | Shift+Backspace | Remove clue |
 | Space | Next cell / convert in edit |

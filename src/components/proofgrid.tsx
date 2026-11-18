@@ -3,11 +3,14 @@ import { NockMenu } from "@/components/nock-menu";
 import { clearHistory, readHistory, rememberCheck, type CheckRecord } from "@/lib/check-history";
 import { cn } from "@/lib/cn";
 import {
+  applyAnswerClue,
   checkFull,
   checkProgress,
   checkSolution,
   checkUnit,
+  clearAnswerClue,
   cloneGrid,
+  digitFromCode,
   emptyGrid,
   formatPuzzle,
   isDigit,
@@ -786,6 +789,29 @@ export function Proofgrid() {
     move(r, c, 1);
   }
 
+  function commitAnswerClue(r: number, c: number, digit: Digit) {
+    const now = live.current;
+    if (now.placing === "clues") return;
+    const next = applyAnswerClue(now.givens, now.entries, r, c, digit);
+    if (next.changed) {
+      remember({ applyGivens: true, restorePlacing: true });
+      live.current = { ...now, givens: next.givens, entries: next.entries };
+      setGivens(next.givens);
+      setEntries(next.entries);
+    }
+    move(r, c, 1);
+  }
+
+  function removeAnswerClue(r: number, c: number) {
+    const now = live.current;
+    if (now.placing === "clues") return;
+    const next = clearAnswerClue(now.givens, r, c);
+    if (!next.changed) return;
+    remember({ applyGivens: true, restorePlacing: true });
+    live.current = { ...now, givens: next.givens };
+    setGivens(next.givens);
+  }
+
   function mergedBoard(): Grid {
     const grid = cloneGrid(givens);
     for (let r = 0; r < 9; r++) {
@@ -1199,11 +1225,11 @@ export function Proofgrid() {
             <div
               role="grid"
               aria-label="Sudoku grid"
-              className="nock-grid aspect-square w-full overflow-hidden rounded-none border-4 border-grid-line bg-grid-line"
+              className="nock-grid aspect-square w-full overflow-hidden rounded-none border-4 border-line bg-line"
             >
-              <div className="grid h-full grid-cols-3 gap-[4px] bg-grid-line">
+              <div className="grid h-full grid-cols-3 gap-[4px] bg-line">
                 {Array.from({ length: 9 }, (_, box) => (
-                  <div key={box} className="grid grid-cols-3 gap-[2px] bg-grid-line">
+                  <div key={box} className="grid grid-cols-3 gap-[2px] bg-line">
                     {Array.from({ length: 9 }, (_, i) => {
                       const r = Math.floor(box / 3) * 3 + Math.floor(i / 3);
                       const c = (box % 3) * 3 + (i % 3);
@@ -1303,6 +1329,23 @@ export function Proofgrid() {
                                 move(r, c, 1, clueLayer);
                               }
                               return;
+                            }
+                            if (!clueLayer && event.shiftKey) {
+                              const shifted = digitFromCode(event.code);
+                              if (shifted != null) {
+                                event.preventDefault();
+                                skipChange.current = true;
+                                commitAnswerClue(r, c, shifted);
+                                queueMicrotask(() => {
+                                  skipChange.current = false;
+                                });
+                                return;
+                              }
+                              if ((event.key === "Backspace" || event.key === "Delete") && given) {
+                                event.preventDefault();
+                                removeAnswerClue(r, c);
+                                return;
+                              }
                             }
                             if (event.key === "Backspace") {
                               event.preventDefault();

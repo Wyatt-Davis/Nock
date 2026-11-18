@@ -31,7 +31,9 @@ const HOTKEYS: Array<[string, string]> = [
   ["← ↑ → ↓", "Move in the grid"],
   ["Space", "Next cell / convert filled in edit"],
   ["Backspace", "Clear or step back"],
+  ["Shift+Backspace", "Removes clue"],
   ["1–9", "Enters digits into board"],
+  ["Shift+1–9", "Enters digit as clue"],
 ];
 
 function layout(rect: DOMRect) {

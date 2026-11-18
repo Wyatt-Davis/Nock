@@ -35,6 +35,36 @@ export function isDigit(value: number): value is Digit {
   return Number.isInteger(value) && value >= 1 && value <= 9;
 }
 
+/** Digit from a physical key. Shift turns event.key into a symbol, so answer-phase clue entry uses code. */
+export function digitFromCode(code: string): Digit | null {
+  const match = /^(?:Digit|Numpad)([1-9])$/.exec(code);
+  return match ? (Number(match[1]) as Digit) : null;
+}
+
+/** Put `digit` in as a clue and drop any answer in that cell. No-op when it is already that clue. */
+export function applyAnswerClue(
+  givens: Grid,
+  entries: Grid,
+  r: number,
+  c: number,
+  digit: Digit,
+): { givens: Grid; entries: Grid; changed: boolean } {
+  if (givens[r][c] === digit && entries[r][c] == null) return { givens, entries, changed: false };
+  const nextGivens = cloneGrid(givens);
+  const nextEntries = cloneGrid(entries);
+  nextGivens[r][c] = digit;
+  nextEntries[r][c] = null;
+  return { givens: nextGivens, entries: nextEntries, changed: true };
+}
+
+/** Remove a clue. No-op when the cell is not a clue. */
+export function clearAnswerClue(givens: Grid, r: number, c: number): { givens: Grid; changed: boolean } {
+  if (givens[r][c] == null) return { givens, changed: false };
+  const nextGivens = cloneGrid(givens);
+  nextGivens[r][c] = null;
+  return { givens: nextGivens, changed: true };
+}
+
 export function isGrid(value: unknown): value is Grid {
   if (!Array.isArray(value) || value.length !== 9) return false;
   return value.every(

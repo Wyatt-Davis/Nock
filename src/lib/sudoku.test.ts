@@ -5,11 +5,14 @@ import {
   NO_UNIQUE_SOLUTION,
   advanceInCells,
   advancePastClues,
+  applyAnswerClue,
   checkFull,
   checkProgress,
   checkSolution,
   checkUnit,
+  clearAnswerClue,
   cloneGrid,
+  digitFromCode,
   emptyGrid,
   emptyResult,
   formatPuzzle,
@@ -236,6 +239,43 @@ describe("sudoku checker", () => {
     assert.deepEqual(advanceInCells(givens, unitCells("row", 0), 0, 0, 1), [0, 3]);
     assert.deepEqual(advanceInCells(givens, unitCells("row", 0), 0, 8, 1), [0, 0]);
     assert.deepEqual(advanceInCells(givens, unitCells("box", 0), 0, 0, 1), [1, 1]);
+  });
+
+  it("reads a digit from the physical key, including the numpad", () => {
+    assert.equal(digitFromCode("Digit1"), 1);
+    assert.equal(digitFromCode("Digit9"), 9);
+    assert.equal(digitFromCode("Numpad5"), 5);
+    assert.equal(digitFromCode("Digit0"), null);
+    assert.equal(digitFromCode("Numpad0"), null);
+    assert.equal(digitFromCode("Digit"), null);
+    assert.equal(digitFromCode("Key1"), null);
+    assert.equal(digitFromCode("!"), null);
+    assert.equal(digitFromCode("1"), null);
+  });
+
+  it("places a shift-digit as a clue, converting or replacing what is there", () => {
+    const givens = emptyGrid();
+    const entries = emptyGrid();
+    entries[0][0] = 4;
+    givens[0][2] = 7;
+    const converted = applyAnswerClue(givens, entries, 0, 0, 5);
+    assert.equal(converted.changed, true);
+    assert.equal(converted.givens[0][0], 5);
+    assert.equal(converted.entries[0][0], null);
+    assert.equal(converted.entries[0][1], null);
+    const replaced = applyAnswerClue(converted.givens, converted.entries, 0, 2, 3);
+    assert.equal(replaced.givens[0][2], 3);
+    assert.equal(replaced.entries[0][2], null);
+    const same = applyAnswerClue(replaced.givens, replaced.entries, 0, 2, 3);
+    assert.equal(same.changed, false);
+    assert.equal(same.givens, replaced.givens);
+    const removed = clearAnswerClue(replaced.givens, 0, 2);
+    assert.equal(removed.changed, true);
+    assert.equal(removed.givens[0][2], null);
+    assert.equal(clearAnswerClue(removed.givens, 0, 2).changed, false);
+    givens[0][1] = 8;
+    const placed = applyAnswerClue(givens, entries, 0, 0, 5);
+    assert.deepEqual(advancePastClues(placed.givens, 0, 0, 1), [0, 3]);
   });
 
   it("flags contradictory clues", () => {

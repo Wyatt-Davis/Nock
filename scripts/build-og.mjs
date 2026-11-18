@@ -23,26 +23,42 @@ const PUZZLE = [
   "385761429",
 ];
 
-const ANGLES = [-12, 8, -7, 11, -5, 14, -9, 6, -13, 10, 4, -8, 12, -4, 9, -11, 7, -6, 13, -10, 5, -14, 3, -3];
-
-/** Large boards stepped across the whole frame, including behind the title. */
-function boardPlacements() {
-  const items = [];
-  let n = 0;
-  for (let row = 0; row < 4; row++) {
-    const y = -130 + row * 215;
-    const xOff = row % 2 === 0 ? -70 : 55;
-    for (let col = 0; col < 6; col++) {
-      items.push({
-        x: xOff + col * 230 + ((n * 7) % 9) - 4,
-        y: y + ((n * 5) % 7) - 3,
-        rotate: ANGLES[n % ANGLES.length],
-        opacity: 0.18 + (n % 5) * 0.02,
-      });
-      n += 1;
+/**
+ * Seven large boards: four corners, both side edges, and one tucked behind the title.
+ * Centers are far enough apart that the rotated boards do not touch.
+ */
+function boardPlacements(size) {
+  const half = size / 2;
+  const centers = [
+    { cx: 80, cy: -40, rotate: -8, opacity: 0.16 },
+    { cx: 1160, cy: -80, rotate: 7, opacity: 0.14 },
+    { cx: -70, cy: 340, rotate: 6, opacity: 0.15 },
+    { cx: 1270, cy: 300, rotate: -8, opacity: 0.17 },
+    { cx: 200, cy: 710, rotate: -6, opacity: 0.16 },
+    { cx: 1140, cy: 730, rotate: 9, opacity: 0.14 },
+    { cx: 630, cy: 200, rotate: -4, opacity: 0.18 },
+  ];
+  const halfBox = (degrees) => {
+    const rad = (Math.abs(degrees) * Math.PI) / 180;
+    return half * (Math.abs(Math.cos(rad)) + Math.abs(Math.sin(rad)));
+  };
+  for (let i = 0; i < centers.length; i++) {
+    for (let j = i + 1; j < centers.length; j++) {
+      const a = centers[i];
+      const b = centers[j];
+      const gapX = Math.abs(a.cx - b.cx) - halfBox(a.rotate) - halfBox(b.rotate);
+      const gapY = Math.abs(a.cy - b.cy) - halfBox(a.rotate) - halfBox(b.rotate);
+      if (gapX < 28 && gapY < 28) {
+        throw new Error(`boards ${i} and ${j} overlap (gap ${gapX.toFixed(0)}×${gapY.toFixed(0)})`);
+      }
     }
   }
-  return items;
+  return centers.map((item) => ({
+    x: item.cx - half,
+    y: item.cy - half,
+    rotate: item.rotate,
+    opacity: item.opacity,
+  }));
 }
 
 async function latinFace(family) {
@@ -93,7 +109,7 @@ function miniBoard(cell) {
 
 function svg(shrikhand, fredoka) {
   const board = miniBoard(28);
-  const boards = boardPlacements()
+  const boards = boardPlacements(board.size)
     .map(
       (item) =>
         `<g opacity="${item.opacity}" transform="translate(${item.x} ${item.y}) rotate(${item.rotate} ${board.size / 2} ${board.size / 2})">${board.markup}</g>`,

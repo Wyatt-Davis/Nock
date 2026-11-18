@@ -242,49 +242,38 @@ describe("sudoku checker", () => {
     assert.deepEqual(advanceInCells(givens, unitCells("box", 0), 0, 0, 1), [1, 1]);
   });
 
-  it("wraps left and right across rows and around the board", () => {
-    const empty = emptyGrid();
-    assert.deepEqual(arrowStep(empty, 0, 8, "ArrowRight", "clues"), [1, 0]);
-    assert.deepEqual(arrowStep(empty, 8, 8, "ArrowRight", "clues"), [0, 0]);
-    assert.deepEqual(arrowStep(empty, 1, 0, "ArrowLeft", "clues"), [0, 8]);
-    assert.deepEqual(arrowStep(empty, 0, 0, "ArrowLeft", "clues"), [8, 8]);
-    assert.deepEqual(arrowStep(empty, 0, 3, "ArrowRight", "clues"), [0, 4]);
-    assert.deepEqual(arrowStep(empty, 0, 0, "ArrowUp", "clues"), [8, 0]);
-    assert.deepEqual(arrowStep(empty, 8, 4, "ArrowDown", "clues"), [0, 4]);
-    assert.deepEqual(arrowStep(empty, 3, 3, "ArrowDown", "clues"), [4, 3]);
-
-    assert.deepEqual(arrowStep(empty, 0, 8, "ArrowRight", "answers"), [1, 0]);
-    assert.deepEqual(arrowStep(empty, 8, 8, "ArrowRight", "answers"), [0, 0]);
-    assert.deepEqual(arrowStep(empty, 2, 0, "ArrowLeft", "answers"), [1, 8]);
-    assert.deepEqual(arrowStep(empty, 0, 0, "ArrowLeft", "answers"), [8, 8]);
-    assert.deepEqual(arrowStep(empty, 4, 1, "ArrowRight", "answers"), [4, 2]);
-    assert.deepEqual(arrowStep(empty, 0, 0, "ArrowUp", "answers"), [0, 0]);
-    assert.deepEqual(arrowStep(empty, 8, 8, "ArrowDown", "answers"), [8, 8]);
-    assert.deepEqual(arrowStep(empty, 4, 1, "ArrowUp", "answers"), [3, 1]);
-    assert.deepEqual(arrowStep(empty, 4, 1, "ArrowDown", "answers"), [5, 1]);
+  it("wraps left and right one cell at a time and lands on clues", () => {
+    for (const placing of ["clues", "answers"] as const) {
+      assert.deepEqual(arrowStep(0, 8, "ArrowRight", placing), [1, 0]);
+      assert.deepEqual(arrowStep(8, 8, "ArrowRight", placing), [0, 0]);
+      assert.deepEqual(arrowStep(1, 0, "ArrowLeft", placing), [0, 8]);
+      assert.deepEqual(arrowStep(0, 0, "ArrowLeft", placing), [8, 8]);
+      assert.deepEqual(arrowStep(0, 3, "ArrowRight", placing), [0, 4]);
+      assert.deepEqual(arrowStep(4, 1, "ArrowLeft", placing), [4, 0]);
+    }
+    assert.deepEqual(arrowStep(0, 0, "ArrowUp", "clues"), [8, 0]);
+    assert.deepEqual(arrowStep(8, 4, "ArrowDown", "clues"), [0, 4]);
+    assert.deepEqual(arrowStep(3, 3, "ArrowDown", "clues"), [4, 3]);
+    assert.deepEqual(arrowStep(0, 0, "ArrowUp", "answers"), [0, 0]);
+    assert.deepEqual(arrowStep(8, 8, "ArrowDown", "answers"), [8, 8]);
+    assert.deepEqual(arrowStep(4, 1, "ArrowUp", "answers"), [3, 1]);
+    assert.deepEqual(arrowStep(4, 1, "ArrowDown", "answers"), [5, 1]);
 
     const givens = emptyGrid();
     givens[0][7] = 4;
     givens[0][8] = 9;
     givens[1][0] = 6;
     givens[8][8] = 2;
-    assert.deepEqual(arrowStep(givens, 0, 6, "ArrowRight", "answers"), [1, 1]);
-    assert.deepEqual(arrowStep(givens, 1, 1, "ArrowLeft", "answers"), [0, 6]);
-    assert.deepEqual(arrowStep(givens, 8, 7, "ArrowRight", "answers"), [0, 0]);
-    assert.deepEqual(arrowStep(givens, 0, 0, "ArrowLeft", "answers"), [8, 7]);
-    assert.deepEqual(arrowStep(givens, 0, 6, "ArrowRight", "clues"), [0, 7]);
-    assert.deepEqual(arrowStep(givens, 0, 8, "ArrowRight", "clues"), [1, 0]);
-    assert.deepEqual(arrowStep(givens, 1, 0, "ArrowUp", "answers"), [0, 0]);
-    assert.deepEqual(arrowStep(givens, 0, 0, "ArrowDown", "answers"), [2, 0]);
-
-    const only = emptyGrid();
-    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) only[r][c] = 1;
-    only[4][4] = null;
-    assert.deepEqual(arrowStep(only, 4, 4, "ArrowRight", "answers"), [4, 4]);
-    assert.deepEqual(arrowStep(only, 4, 4, "ArrowLeft", "answers"), [4, 4]);
-    only[3][4] = null;
-    assert.deepEqual(arrowStep(only, 4, 4, "ArrowUp", "answers"), [3, 4]);
-    assert.deepEqual(arrowStep(only, 3, 4, "ArrowUp", "answers"), [3, 4]);
+    assert.deepEqual(arrowStep(0, 6, "ArrowRight", "answers"), [0, 7]);
+    assert.deepEqual(arrowStep(0, 7, "ArrowRight", "answers"), [0, 8]);
+    assert.deepEqual(arrowStep(1, 1, "ArrowLeft", "answers"), [1, 0]);
+    assert.deepEqual(arrowStep(8, 7, "ArrowRight", "answers"), [8, 8]);
+    assert.deepEqual(arrowStep(0, 0, "ArrowLeft", "answers"), [8, 8]);
+    assert.deepEqual(arrowStep(0, 0, "ArrowDown", "answers"), [1, 0]);
+    assert.deepEqual(arrowStep(2, 0, "ArrowUp", "answers"), [1, 0]);
+    assert.deepEqual(advancePastClues(givens, 0, 6, 1), [1, 1]);
+    assert.deepEqual(advancePastClues(givens, 1, 1, -1), [0, 6]);
+    assert.deepEqual(advancePastClues(givens, 8, 7, 1), [0, 0]);
   });
 
   it("reads a digit from the physical key, including the numpad", () => {

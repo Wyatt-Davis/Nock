@@ -127,28 +127,26 @@ export function advancePastClues(givens: Grid, r: number, c: number, dir: 1 | -1
 }
 
 /**
- * Arrow target. Left and right walk in reading order: the end of a row continues
- * at the start of the next, and the board wraps. Answer entry skips clues and
- * stays put when no other answer cell exists. Up and down do not wrap.
+ * Arrow target. Every arrow moves one cell and lands on clues.
+ * Left and right walk in reading order: the end of a row continues at the
+ * start of the next, and the board wraps. Up and down do not wrap while answering.
  */
 export function arrowStep(
-  givens: Grid,
   r: number,
   c: number,
   key: "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown",
   placing: "clues" | "answers",
 ): [number, number] {
-  if (key === "ArrowUp" || key === "ArrowDown") {
-    const dr = key === "ArrowUp" ? -1 : 1;
-    if (placing === "clues") return [(r + dr + 9) % 9, c];
-    return stepPastClues(givens, r, c, dr, 0);
-  }
-  const dir = key === "ArrowRight" ? 1 : -1;
-  if (placing === "clues") {
+  if (key === "ArrowLeft" || key === "ArrowRight") {
+    const dir = key === "ArrowRight" ? 1 : -1;
     const i = (r * 9 + c + dir + 81) % 81;
     return [Math.floor(i / 9), i % 9];
   }
-  return advancePastClues(givens, r, c, dir);
+  const dr = key === "ArrowUp" ? -1 : 1;
+  if (placing === "clues") return [(r + dr + 9) % 9, c];
+  const nr = r + dr;
+  if (nr < 0 || nr > 8) return [r, c];
+  return [nr, c];
 }
 
 /** Next non-clue in one cardinal direction. Does not wrap; stays put when none remains. */

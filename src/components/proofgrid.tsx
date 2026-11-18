@@ -24,7 +24,6 @@ import {
   advancePastClues,
   arrowStep,
   blankMask,
-  stepPastClues,
   type Digit,
   type Grid,
   type UnitKind,
@@ -743,7 +742,7 @@ export function Proofgrid() {
   function moveArrow(r: number, c: number, key: string) {
     if (key !== "ArrowLeft" && key !== "ArrowRight" && key !== "ArrowUp" && key !== "ArrowDown") return;
     const now = live.current;
-    const [nr, nc] = arrowStep(now.givens, r, c, key, now.placing);
+    const [nr, nc] = arrowStep(r, c, key, now.placing);
     if (nr === r && nc === c) return;
     followUnit(nr, nc);
     focusAt(nr, nc);

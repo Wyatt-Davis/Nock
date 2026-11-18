@@ -24,19 +24,17 @@ const PUZZLE = [
 ];
 
 /**
- * Seven large boards staggered through the frame: upper middle, beside the title,
- * and across the lower half. Rotated bounds stay at least 28px apart.
+ * Five boards from the share-image spec. Positive rotation is clockwise.
+ * Rotated bounds stay apart except where a corner board must bleed off the frame.
  */
 function boardPlacements(size) {
   const half = size / 2;
   const centers = [
-    { cx: 430, cy: -15, rotate: -6, opacity: 0.16 },
-    { cx: 880, cy: -30, rotate: 7, opacity: 0.15 },
-    { cx: 175, cy: 355, rotate: -5, opacity: 0.17 },
-    { cx: 1035, cy: 360, rotate: 6, opacity: 0.16 },
-    { cx: 250, cy: 720, rotate: 8, opacity: 0.15 },
-    { cx: 630, cy: 690, rotate: -4, opacity: 0.17 },
-    { cx: 1010, cy: 710, rotate: -7, opacity: 0.14 },
+    { cx: 8, cy: -24, rotate: 45, opacity: 0.16 },
+    { cx: 36, cy: 548, rotate: -20, opacity: 0.16 },
+    { cx: 470, cy: 128, rotate: 30, opacity: 0.17 },
+    { cx: 940, cy: 500, rotate: -35, opacity: 0.16 },
+    { cx: 1195, cy: -8, rotate: 15, opacity: 0.15 },
   ];
   const halfBox = (degrees) => {
     const rad = (Math.abs(degrees) * Math.PI) / 180;
@@ -123,18 +121,18 @@ ${shrikhand}
 ${fredoka}
 </style>
 <defs>
-  <radialGradient id="titleGlow" cx="600" cy="328" r="420" gradientUnits="userSpaceOnUse">
-    <stop offset="0%" stop-color="#1a0b24" stop-opacity="0.9"/>
-    <stop offset="22%" stop-color="#1a0b24" stop-opacity="0.62"/>
-    <stop offset="48%" stop-color="#1a0b24" stop-opacity="0.28"/>
-    <stop offset="72%" stop-color="#1a0b24" stop-opacity="0.08"/>
+  <radialGradient id="titleGlow" cx="600" cy="328" r="460" gradientUnits="userSpaceOnUse">
+    <stop offset="0%" stop-color="#1a0b24" stop-opacity="0.82"/>
+    <stop offset="18%" stop-color="#1a0b24" stop-opacity="0.5"/>
+    <stop offset="40%" stop-color="#1a0b24" stop-opacity="0.18"/>
+    <stop offset="62%" stop-color="#1a0b24" stop-opacity="0"/>
     <stop offset="100%" stop-color="#1a0b24" stop-opacity="0"/>
   </radialGradient>
 </defs>
 <rect width="1200" height="630" fill="#1a0b24"/>
 ${boards}
-<circle cx="600" cy="328" r="420" fill="url(#titleGlow)"/>
-<text x="600" y="332" text-anchor="middle" dominant-baseline="central" font-family="Shrikhand" font-size="148" fill="#f6c453" style="filter:drop-shadow(0 0 18px #1a0b24)">Nock</text>
+<rect width="1200" height="630" fill="url(#titleGlow)"/>
+<text x="600" y="332" text-anchor="middle" dominant-baseline="central" font-family="Shrikhand" font-size="148" fill="#f6c453">Nock</text>
 </svg>`;
 }
 

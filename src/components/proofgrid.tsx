@@ -16,7 +16,11 @@ import {
   repairEntries,
   solutions,
   unitCells,
+  NO_UNIQUE_SOLUTION,
+  advanceInCells,
+  advancePastClues,
   blankMask,
+  stepPastClues,
   type Digit,
   type Grid,
   type UnitKind,
@@ -133,6 +137,7 @@ function presentVerdict(
     if (mode === "progress" && verdict.reason === "incomplete") return plain("No mistakes");
     return plain("Correct");
   }
+  if (verdict.note === NO_UNIQUE_SOLUTION) return plain(verdict.note);
   if (verdict.reason === "nosolution") return plain("No solution");
   if (verdict.kind === "ambiguous") {
     const house = unitKind === "row" ? "Row" : unitKind === "col" ? "Column" : unitKind === "box" ? "Box" : "Cell";
@@ -231,6 +236,8 @@ export function Proofgrid() {
   const [history, setHistory] = useState<CheckRecord[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [focusIndex, setFocusIndex] = useState(0);
+  const [resultUnit, setResultUnit] = useState<{ kind: UnitKind; index: number } | null>(null);
+  const [checkedBoard, setCheckedBoard] = useState<Grid | null>(null);
   const closeMenuRef = useRef(() => {});
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   const skipChange = useRef(false);
@@ -330,39 +337,6 @@ export function Proofgrid() {
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
   }, []);
-
-  useEffect(() => {
-    if (!unitFocus) return;
-    let armed = false;
-    let timer = 0;
-    const frame = requestAnimationFrame(() => {
-      timer = window.setTimeout(() => {
-        armed = true;
-      }, 300);
-    });
-    const onPointerDown = (event: PointerEvent) => {
-      if (!armed) return;
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (target.closest("[data-solved-unit], [data-solve], [data-check]")) return;
-      setUnitFocus(false);
-      setUnitSolved(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!armed) return;
-      if (event.key === "Shift" || event.key === "Control" || event.key === "Alt" || event.key === "Meta") return;
-      setUnitFocus(false);
-      setUnitSolved(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [unitFocus]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -494,6 +468,17 @@ export function Proofgrid() {
     setMarkSolved(false);
     setUnitFocus(false);
     setUnitSolved(false);
+    setResultUnit(null);
+    setCheckedBoard(null);
+  }
+
+  function pinResultUnit() {
+    const now = live.current;
+    if (now.mode === "unit") setResultUnit({ kind: now.unitKind, index: now.unitIndex });
+    else setResultUnit(null);
+    const board = cloneGrid(now.givens);
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (board[r][c] == null) board[r][c] = now.entries[r][c];
+    setCheckedBoard(board);
   }
 
   function clueBaseline(): Snap {
@@ -541,6 +526,7 @@ export function Proofgrid() {
       setSolveNote(null);
       setUnitFocus(false);
       setUnitSolved(false);
+      pinResultUnit();
     } else {
       clearVerdict();
     }
@@ -604,7 +590,6 @@ export function Proofgrid() {
     live.current = { ...now, givens: nextGivens, entries: nextEntries };
     setGivens(nextGivens);
     setEntries(nextEntries);
-    clearVerdict();
   }
 
   function clearAnswers() {
@@ -638,12 +623,7 @@ export function Proofgrid() {
       setPlacing("answers");
       setGivens(blankGivens);
       setEntries(blankEntries);
-      setVerdict(null);
-      setRevealed(false);
-      setMarkSolved(false);
-      setUnitFocus(false);
-      setUnitSolved(false);
-      setSolveNote(null);
+      clearVerdict();
       dropSelection();
       return;
     }
@@ -698,44 +678,81 @@ export function Proofgrid() {
   }
 
   function followUnit(r: number, c: number) {
-    if (mode !== "unit") return;
+    const now = live.current;
+    if (now.mode !== "unit") return;
     const index =
-      unitKind === "cell" ? r * 9 + c : unitKind === "row" ? r : unitKind === "col" ? c : Math.floor(r / 3) * 3 + Math.floor(c / 3);
-    if (index !== unitIndex) setUnitIndex(index);
+      now.unitKind === "cell"
+        ? r * 9 + c
+        : now.unitKind === "row"
+          ? r
+          : now.unitKind === "col"
+            ? c
+            : Math.floor(r / 3) * 3 + Math.floor(c / 3);
+    if (index === now.unitIndex) return;
+    live.current = { ...now, unitIndex: index };
+    setUnitIndex(index);
   }
 
   function move(r: number, c: number, dir: 1 | -1, likeAnswers = false) {
     const now = live.current;
+    const inAnswers = now.placing !== "clues";
     let nr = r;
     let nc = c;
-    if (now.mode === "unit" && (likeAnswers || now.placing !== "clues") && now.unitKind !== "cell") {
-      if (now.unitKind === "row") {
-        nr = now.unitIndex;
-        nc = (c + dir + 9) % 9;
-      } else if (now.unitKind === "col") {
-        const col = now.unitIndex;
-        nr = r;
-        for (let step = 1; step <= 9; step++) {
-          const candidate = (r + dir * step + 90) % 9;
-          if (now.givens[candidate][col] == null) {
-            nr = candidate;
-            break;
+    if (now.mode === "unit" && (likeAnswers || inAnswers) && now.unitKind !== "cell") {
+      if (!inAnswers) {
+        if (now.unitKind === "row") {
+          nr = now.unitIndex;
+          nc = (c + dir + 9) % 9;
+        } else if (now.unitKind === "col") {
+          const col = now.unitIndex;
+          nr = r;
+          for (let step = 1; step <= 9; step++) {
+            const candidate = (r + dir * step + 90) % 9;
+            if (now.givens[candidate][col] == null) {
+              nr = candidate;
+              break;
+            }
           }
+          nc = col;
+        } else {
+          const cells = unitCells("box", now.unitIndex);
+          let idx = cells.findIndex(([rr, cc]) => rr === r && cc === c);
+          if (idx < 0) idx = 0;
+          else idx = (idx + dir + cells.length) % cells.length;
+          nr = cells[idx][0];
+          nc = cells[idx][1];
         }
-        nc = col;
+      } else if (now.unitKind === "row") {
+        [nr, nc] = advanceInCells(now.givens, unitCells("row", now.unitIndex), now.unitIndex, c, dir);
+      } else if (now.unitKind === "col") {
+        [nr, nc] = advanceInCells(now.givens, unitCells("col", now.unitIndex), r, now.unitIndex, dir);
       } else {
-        const cells = unitCells("box", now.unitIndex);
-        let idx = cells.findIndex(([rr, cc]) => rr === r && cc === c);
-        if (idx < 0) idx = 0;
-        else idx = (idx + dir + cells.length) % cells.length;
-        nr = cells[idx][0];
-        nc = cells[idx][1];
+        [nr, nc] = advanceInCells(now.givens, unitCells("box", now.unitIndex), r, c, dir);
       }
+    } else if (inAnswers) {
+      [nr, nc] = advancePastClues(now.givens, r, c, dir);
     } else {
       const i = (r * 9 + c + dir + 81) % 81;
       nr = Math.floor(i / 9);
       nc = i % 9;
     }
+    followUnit(nr, nc);
+    focusAt(nr, nc);
+  }
+
+  function moveArrow(r: number, c: number, key: string) {
+    const now = live.current;
+    if (now.placing === "clues") {
+      if (key === "ArrowLeft") move(r, c, -1);
+      else if (key === "ArrowRight") move(r, c, 1);
+      else if (key === "ArrowUp") focusAt((r + 8) % 9, c);
+      else if (key === "ArrowDown") focusAt((r + 1) % 9, c);
+      return;
+    }
+    const dr = key === "ArrowUp" ? -1 : key === "ArrowDown" ? 1 : 0;
+    const dc = key === "ArrowLeft" ? -1 : key === "ArrowRight" ? 1 : 0;
+    const [nr, nc] = stepPastClues(now.givens, r, c, dr, dc);
+    if (nr === r && nc === c) return;
     followUnit(nr, nc);
     focusAt(nr, nc);
   }
@@ -746,7 +763,6 @@ export function Proofgrid() {
     if (now.placing !== "clues" && now.mode === "unit" && !inUnit(now.unitKind, now.unitIndex, r, c)) return;
     const current = now.placing === "clues" ? now.givens[r][c] : now.entries[r][c];
     if (current === value) return;
-    clearVerdict();
     if (now.placing === "clues") {
       if (!clueSession.current) clueSession.current = clueBaseline();
       const next = cloneGrid(now.givens);
@@ -794,6 +810,7 @@ export function Proofgrid() {
     setMarkSolved(false);
     setUnitFocus(mode === "unit");
     setUnitSolved(mode === "unit" && next.kind === "correct");
+    pinResultUnit();
     recordChecked(next);
   }
 
@@ -857,10 +874,7 @@ export function Proofgrid() {
     if (placing === "clues") return;
     if (!leaveClues()) return;
     const board = mergedBoard();
-    setVerdict(null);
-    setRevealed(false);
-    setMarkSolved(false);
-    setSolveNote(null);
+    clearVerdict();
     if (solveBlocked()) return;
     if (board.every((row) => row.every((cell) => cell != null))) {
       const full = checkFull(board);
@@ -870,6 +884,7 @@ export function Proofgrid() {
         setRevealed(true);
         setMarkSolved(true);
         setSolveNote("Solved");
+        pinResultUnit();
         dropSelection();
         return;
       }
@@ -880,6 +895,7 @@ export function Proofgrid() {
     if (result.blocked) {
       setVerdict(result.blocked);
       setRevealed(true);
+      pinResultUnit();
       return;
     }
     if (!result.complete) {
@@ -903,18 +919,14 @@ export function Proofgrid() {
     setRevealed(true);
     setMarkSolved(true);
     setSolveNote("Solved");
+    pinResultUnit();
     dropSelection();
   }
 
   function solveUnit() {
     if (placing === "clues") return;
     if (!leaveClues()) return;
-    setVerdict(null);
-    setRevealed(false);
-    setMarkSolved(false);
-    setSolveNote(null);
-    setUnitFocus(false);
-    setUnitSolved(false);
+    clearVerdict();
     if (solveBlocked()) return;
     const cells = unitCells(unitKind, unitIndex);
     const targets = cells.filter(([r, c]) => givens[r][c] == null);
@@ -926,6 +938,7 @@ export function Proofgrid() {
     if (result.blocked) {
       setVerdict(result.blocked);
       setRevealed(true);
+      pinResultUnit();
       return;
     }
     const next = cloneGrid(entries);
@@ -943,6 +956,7 @@ export function Proofgrid() {
       setSolveNote("Solved");
       setUnitFocus(true);
       setUnitSolved(true);
+      pinResultUnit();
       return;
     }
     const open = blankMask();
@@ -952,6 +966,7 @@ export function Proofgrid() {
     setSolveNote(null);
     setUnitFocus(false);
     setUnitSolved(false);
+    pinResultUnit();
   }
 
   function chooseUnit(r: number, c: number) {
@@ -960,40 +975,6 @@ export function Proofgrid() {
     if (index === unitIndex) return;
     live.current = { ...live.current, unitIndex: index };
     setUnitIndex(index);
-    clearVerdict();
-  }
-
-  function nudgeUnit(key: string, r: number, c: number) {
-    if (mode !== "unit" || placing === "clues") return false;
-    let nr = r;
-    let nc = c;
-    if (unitKind === "box") {
-      const br = Math.floor(r / 3);
-      const bc = Math.floor(c / 3);
-      let nbr = br;
-      let nbc = bc;
-      if (key === "ArrowLeft") nbc = (bc + 2) % 3;
-      else if (key === "ArrowRight") nbc = (bc + 1) % 3;
-      else if (key === "ArrowUp") nbr = (br + 2) % 3;
-      else if (key === "ArrowDown") nbr = (br + 1) % 3;
-      else return false;
-      nr = nbr * 3 + (r % 3);
-      nc = nbc * 3 + (c % 3);
-    } else if (key === "ArrowLeft") {
-      const i = (r * 9 + c + 80) % 81;
-      nr = Math.floor(i / 9);
-      nc = i % 9;
-    } else if (key === "ArrowRight") {
-      const i = (r * 9 + c + 1) % 81;
-      nr = Math.floor(i / 9);
-      nc = i % 9;
-    } else if (key === "ArrowUp") nr = (r + 8) % 9;
-    else if (key === "ArrowDown") nr = (r + 1) % 9;
-    else return false;
-    followUnit(nr, nc);
-    clearVerdict();
-    focusAt(nr, nc);
-    return true;
   }
 
   function focusSelection(kind: UnitKind = unitKind, index: number = unitIndex) {
@@ -1028,7 +1009,9 @@ export function Proofgrid() {
     }
   }
 
-  const presented = verdict ? presentVerdict(mode, verdict, unitKind, unitIndex, givens, entries) : null;
+  const highlightKind = revealed && resultUnit ? resultUnit.kind : unitKind;
+  const highlightIndex = revealed && resultUnit ? resultUnit.index : unitIndex;
+  const presented = verdict ? presentVerdict(mode, verdict, highlightKind, highlightIndex, givens, entries) : null;
   const copy = presented?.text ?? null;
   const toast = solveNote === "Solved" ? "Solved" : copy ?? solveNote;
   const tone = toast ? resultTone(toast) : null;
@@ -1216,11 +1199,11 @@ export function Proofgrid() {
             <div
               role="grid"
               aria-label="Sudoku grid"
-              className="nock-grid aspect-square w-full overflow-hidden rounded-none border-2 border-line bg-bg p-px"
+              className="nock-grid aspect-square w-full overflow-hidden rounded-none border-4 border-grid-line bg-grid-line"
             >
-              <div className="grid h-full grid-cols-3 gap-0.5 bg-line">
+              <div className="grid h-full grid-cols-3 gap-[4px] bg-grid-line">
                 {Array.from({ length: 9 }, (_, box) => (
-                  <div key={box} className="grid grid-cols-3 gap-px bg-line">
+                  <div key={box} className="grid grid-cols-3 gap-[2px] bg-grid-line">
                     {Array.from({ length: 9 }, (_, i) => {
                       const r = Math.floor(box / 3) * 3 + Math.floor(i / 3);
                       const c = (box % 3) * 3 + (i % 3);
@@ -1229,19 +1212,23 @@ export function Proofgrid() {
                       const ghost = clueLayer && !given && entries[r][c] != null;
                       const value = clueLayer ? givens[r][c] : givens[r][c] ?? entries[r][c];
                       const locked = !clueLayer && (given || (mode === "unit" && !inUnit(unitKind, unitIndex, r, c)));
+                      const inHighlight = inUnit(highlightKind, highlightIndex, r, c);
+                      const active = focusIndex === r * 9 + c;
                       const selected = mode === "unit" && !clueLayer && !unitFocus && inUnit(unitKind, unitIndex, r, c);
-                      const inFocusedUnit = unitFocus && mode === "unit" && !clueLayer && inUnit(unitKind, unitIndex, r, c);
-                      const outsideFocus = unitFocus && mode === "unit" && !clueLayer && !inFocusedUnit;
-                      const inCheckedUnit = mode !== "unit" || inUnit(unitKind, unitIndex, r, c);
-                      const filled = (givens[r][c] ?? entries[r][c]) != null;
-                      const unsettled = Boolean(showWrong && verdict?.kind === "ambiguous" && mode === "unit" && inUnit(unitKind, unitIndex, r, c));
+                      const inFocusedUnit = unitFocus && mode === "unit" && !clueLayer && inHighlight;
+                      const outsideFocus = unitFocus && mode === "unit" && !clueLayer && !inHighlight;
+                      const inCheckedUnit = mode !== "unit" || inHighlight;
+                      const shownValue = givens[r][c] ?? entries[r][c];
+                      const filled = shownValue != null;
+                      const sameAsCheck = checkedBoard != null && checkedBoard[r][c] === shownValue;
+                      const unsettled = Boolean(showWrong && verdict?.kind === "ambiguous" && mode === "unit" && inHighlight);
                       const wrong = Boolean(
                         (showWrong && inCheckedUnit && (verdict?.wrong[r][c] || presented?.mark[r][c])) ||
                           unsettled ||
                           (emptyBoard && !filled),
                       );
-                      const unitGreen = unitSolved && mode === "unit" && !clueLayer && inUnit(unitKind, unitIndex, r, c);
-                      const solved = Boolean((markSolved && filled) || unitGreen);
+                      const unitGreen = unitSolved && mode === "unit" && !clueLayer && inHighlight && sameAsCheck;
+                      const solved = Boolean((markSolved && filled && sameAsCheck) || unitGreen);
                       return (
                         <div key={`${r}-${c}`} className="relative aspect-square min-w-0 bg-bg">
                         <input
@@ -1302,31 +1289,9 @@ export function Proofgrid() {
                           }}
                           onKeyDown={(event) => {
                             if (event.metaKey || event.ctrlKey || event.altKey) return;
-                            if (
-                              (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown") &&
-                              nudgeUnit(event.key, r, c)
-                            ) {
+                            if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown") {
                               event.preventDefault();
-                              return;
-                            }
-                            if (event.key === "ArrowLeft") {
-                              event.preventDefault();
-                              move(r, c, -1);
-                              return;
-                            }
-                            if (event.key === "ArrowRight") {
-                              event.preventDefault();
-                              move(r, c, 1);
-                              return;
-                            }
-                            if (event.key === "ArrowUp") {
-                              event.preventDefault();
-                              focusAt((r + 8) % 9, c);
-                              return;
-                            }
-                            if (event.key === "ArrowDown") {
-                              event.preventDefault();
-                              focusAt((r + 1) % 9, c);
+                              moveArrow(r, c, event.key);
                               return;
                             }
                             if (event.key === " ") {
@@ -1354,7 +1319,14 @@ export function Proofgrid() {
                               move(r, c, 1);
                               return;
                             }
-                            if (locked) return;
+                            const now = live.current;
+                            const answerLocked =
+                              now.placing !== "clues" &&
+                              (now.givens[r][c] != null || (now.mode === "unit" && !inUnit(now.unitKind, now.unitIndex, r, c)));
+                            if (answerLocked) {
+                              event.preventDefault();
+                              return;
+                            }
                             if (event.key >= "1" && event.key <= "9") {
                               event.preventDefault();
                               skipChange.current = true;
@@ -1372,8 +1344,7 @@ export function Proofgrid() {
                           className={cn(
                             inputClass,
                             "absolute inset-0 h-full",
-                            "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-line",
-                            selected && "shadow-[inset_0_0_0_1px_var(--color-line)]",
+                            active && "z-10 focus:shadow-[inset_0_0_0_3px_#fff1d6]",
                             wrong && !unitGreen
                               ? "bg-primary-soft text-fg"
                               : unitGreen
@@ -1382,7 +1353,7 @@ export function Proofgrid() {
                                   ? cn("bg-bg", entryDimClass)
                                   : solved
                                     ? solvedFace(given && !clueLayer)
-                                    : showRight && mode !== "unit" && inCheckedUnit && !verdict?.wrong[r][c] && filled
+                                    : showRight && mode !== "unit" && inCheckedUnit && !verdict?.wrong[r][c] && filled && sameAsCheck
                                       ? solvedFace(given && !clueLayer)
                                       : selected
                                       ? given && !clueLayer

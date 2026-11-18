@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   EXAMPLE_CLUES,
+  NO_UNIQUE_SOLUTION,
+  advanceInCells,
+  advancePastClues,
   checkFull,
   checkProgress,
   checkSolution,
   checkUnit,
   cloneGrid,
+  emptyGrid,
   emptyResult,
   formatPuzzle,
   gridFromDigits,
@@ -14,6 +18,7 @@ import {
   parsePuzzle,
   repairEntries,
   solutions,
+  stepPastClues,
   unitCells,
   type Digit,
   type Grid,
@@ -137,13 +142,100 @@ describe("sudoku checker", () => {
     assert.equal(verdict.wrong[0][2], true);
   });
 
-  it("says unsolvable clues have no solution when nothing repeats", () => {
+  it("says unsolvable clues have no unique solution when nothing repeats", () => {
     const givens = gridFromDigits([]);
     for (let c = 0; c < 8; c++) givens[0][c] = (c + 1) as Digit;
     givens[1][8] = 9;
     const verdict = checkProgress(givens, gridFromDigits([]));
     assert.equal(verdict.reason, "nosolution");
-    assert.equal(verdict.note, "No solution");
+    assert.equal(verdict.note, NO_UNIQUE_SOLUTION);
+    assert.equal(verdict.wrong.some((row) => row.some(Boolean)), false);
+  });
+
+  it("flags a partial entry that misses the solution even when it does not repeat", () => {
+    const solved = solutions(clues(), 1)[0];
+    const entries = gridFromDigits([]);
+    entries[0][2] = 1;
+    entries[0][5] = solved[0][5];
+    const verdict = checkProgress(clues(), entries);
+    assert.equal(verdict.kind, "incorrect");
+    assert.equal(verdict.reason, "mismatch");
+    assert.equal(verdict.wrong[0][2], true);
+    assert.equal(verdict.wrong[0][5], false);
+    assert.equal(verdict.wrong[0][3], false);
+    assert.equal(verdict.wrong.flat().filter(Boolean).length, 1);
+  });
+
+  it("flags solution misses and duplicates together on a partial grid", () => {
+    const entries = gridFromDigits([]);
+    entries[0][8] = 4;
+    entries[0][3] = 1;
+    const verdict = checkProgress(clues(), entries);
+    assert.equal(verdict.reason, "duplicate");
+    assert.equal(verdict.wrong[0][8], true);
+    assert.equal(verdict.wrong[0][3], true);
+    assert.equal(verdict.wrong[1][3], true);
+    assert.equal(verdict.wrong[0][2], false);
+  });
+
+  it("does not grade partial entries against one of several solutions", () => {
+    const givens = clues();
+    givens[2][2] = null;
+    const entries = gridFromDigits([]);
+    entries[2][2] = 4;
+    const verdict = checkProgress(givens, entries);
+    assert.equal(solutions(givens, 2).length, 2);
+    assert.equal(verdict.kind, "ambiguous");
+    assert.equal(verdict.note, NO_UNIQUE_SOLUTION);
+    assert.equal(verdict.wrong.some((row) => row.some(Boolean)), false);
+    assert.equal(verdict.wrong[2][2], false);
+  });
+
+  it("still reports duplicates when partial clues are not unique", () => {
+    const givens = clues();
+    givens[2][2] = null;
+    const entries = gridFromDigits([]);
+    entries[0][2] = 5;
+    const verdict = checkProgress(givens, entries);
+    assert.equal(verdict.reason, "duplicate");
+    assert.equal(verdict.note, "Duplicate 5 in Row 1");
+    assert.equal(verdict.wrong[0][0], true);
+    assert.equal(verdict.wrong[0][2], true);
+    assert.equal(verdict.wrong[2][2], false);
+  });
+
+  it("reports an entered duplicate when the clues themselves have no solution", () => {
+    const givens = gridFromDigits([]);
+    for (let c = 0; c < 8; c++) givens[0][c] = (c + 1) as Digit;
+    givens[1][8] = 9;
+    const entries = gridFromDigits([]);
+    entries[3][0] = 4;
+    entries[3][1] = 4;
+    const verdict = checkProgress(givens, entries);
+    assert.equal(verdict.reason, "duplicate");
+    assert.equal(verdict.note, "Duplicate 4 in Row 4");
+    assert.equal(verdict.wrong[3][0], true);
+    assert.equal(verdict.wrong[3][1], true);
+  });
+
+  it("skips clues when moving through answers and stays put at a wall of clues", () => {
+    const givens = emptyGrid();
+    givens[0][1] = 5;
+    givens[0][2] = 3;
+    givens[1][0] = 6;
+    assert.deepEqual(advancePastClues(givens, 0, 0, 1), [0, 3]);
+    assert.deepEqual(advancePastClues(givens, 0, 8, 1), [1, 1]);
+    assert.deepEqual(advancePastClues(givens, 0, 3, -1), [0, 0]);
+    assert.deepEqual(stepPastClues(givens, 0, 0, 0, 1), [0, 3]);
+    assert.deepEqual(stepPastClues(givens, 0, 0, 0, -1), [0, 0]);
+    assert.deepEqual(stepPastClues(givens, 0, 3, -1, 0), [0, 3]);
+    assert.deepEqual(stepPastClues(givens, 1, 1, 0, -1), [1, 1]);
+    const full = emptyGrid();
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) full[r][c] = 1;
+    assert.deepEqual(advancePastClues(full, 4, 4, 1), [4, 4]);
+    assert.deepEqual(advanceInCells(givens, unitCells("row", 0), 0, 0, 1), [0, 3]);
+    assert.deepEqual(advanceInCells(givens, unitCells("row", 0), 0, 8, 1), [0, 0]);
+    assert.deepEqual(advanceInCells(givens, unitCells("box", 0), 0, 0, 1), [1, 1]);
   });
 
   it("flags contradictory clues", () => {

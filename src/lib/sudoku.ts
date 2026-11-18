@@ -85,6 +85,56 @@ export function gridFromDigits(digits: readonly (Digit | null)[]): Grid {
   return grid;
 }
 
+/** Next non-clue in reading order, wrapping rows and then the board. Stays put if every cell is a clue. */
+export function advancePastClues(givens: Grid, r: number, c: number, dir: 1 | -1): [number, number] {
+  for (let step = 1; step <= 81; step++) {
+    const i = (r * 9 + c + dir * step + 162) % 81;
+    const nr = Math.floor(i / 9);
+    const nc = i % 9;
+    if (givens[nr][nc] == null) return [nr, nc];
+  }
+  return [r, c];
+}
+
+/** Next non-clue in one cardinal direction. Does not wrap; stays put when none remains. */
+export function stepPastClues(givens: Grid, r: number, c: number, dr: -1 | 0 | 1, dc: -1 | 0 | 1): [number, number] {
+  if (dr === 0 && dc === 0) return [r, c];
+  let nr = r + dr;
+  let nc = c + dc;
+  while (nr >= 0 && nr < 9 && nc >= 0 && nc < 9) {
+    if (givens[nr][nc] == null) return [nr, nc];
+    nr += dr;
+    nc += dc;
+  }
+  return [r, c];
+}
+
+/** Next non-clue inside an ordered unit, wrapping within that list. Stays put if each cell is a clue. */
+export function advanceInCells(
+  givens: Grid,
+  cells: Array<[number, number]>,
+  r: number,
+  c: number,
+  dir: 1 | -1,
+): [number, number] {
+  if (cells.length === 0) return [r, c];
+  const idx = cells.findIndex(([rr, cc]) => rr === r && cc === c);
+  if (idx < 0) {
+    for (let i = 0; i < cells.length; i++) {
+      const at = dir === 1 ? i : cells.length - 1 - i;
+      const [rr, cc] = cells[at];
+      if (givens[rr][cc] == null) return [rr, cc];
+    }
+    return [r, c];
+  }
+  for (let step = 1; step <= cells.length; step++) {
+    const next = (((idx + dir * step) % cells.length) + cells.length) % cells.length;
+    const [rr, cc] = cells[next];
+    if (givens[rr][cc] == null) return [rr, cc];
+  }
+  return [r, c];
+}
+
 export function unitCells(kind: UnitKind, index: number): Array<[number, number]> {
   if (kind === "cell") {
     return [[Math.floor(index / 9), index % 9]];
@@ -726,10 +776,13 @@ export function checkSolution(givens: Grid, entries: Grid): Verdict {
   return { kind: "incorrect", reason: "incomplete", note: "Empty cells", wrong, open: blankMask() };
 }
 
+export const NO_UNIQUE_SOLUTION = "Clues have no unique solution";
+
 /**
- * Check an in-progress grid. Empty cells are never wrong.
- * With a unique set of clues, a filled digit is wrong when it isn't the solution.
- * Otherwise a digit is wrong only when it clashes or makes the grid impossible.
+ * Partial check. Empty cells are never wrong.
+ * Unique clues are solved, and every entered digit that differs from that
+ * solution is wrong, together with any duplicate. If the clues have no
+ * solution or more than one, only duplicates are marked.
  */
 export function checkProgress(givens: Grid, entries: Grid): Verdict {
   const wrong = blankMask();
@@ -739,66 +792,39 @@ export function checkProgress(givens: Grid, entries: Grid): Verdict {
     return { kind: "incorrect", reason: "incomplete", note: "Add clues to check", wrong, open };
   }
 
-  const clueDup = duplicateReport(givens);
-  if (clueDup) {
-    return { kind: "incorrect", reason: "duplicate", note: clueDup.note, wrong: clueDup.wrong, open };
-  }
-
-  if (solutions(givens, 1).length === 0) {
-    return { kind: "incorrect", reason: "nosolution", note: "No solution", wrong, open };
-  }
-
-  const found = solutions(givens, 2);
   const combined = mergeProgress(givens, entries);
-  const entryDup = duplicateReport(combined);
-  if (entryDup) {
-    return { kind: "incorrect", reason: "duplicate", note: entryDup.note, wrong: entryDup.wrong, open };
-  }
-  const unfinished = countFilled(combined) < 81;
+  const dup = duplicateReport(combined);
+  const found = solutions(givens, 2);
 
-  if (found.length === 1) {
-    const solved = found[0];
-    let mismatch = false;
+  if (found.length !== 1) {
+    if (dup) {
+      return { kind: "incorrect", reason: "duplicate", note: dup.note, wrong: dup.wrong, open };
+    }
+    if (found.length === 0) {
+      return { kind: "contradiction", reason: "nosolution", note: NO_UNIQUE_SOLUTION, wrong, open };
+    }
+    return { kind: "ambiguous", reason: null, note: NO_UNIQUE_SOLUTION, wrong, open };
+  }
+
+  const solved = found[0];
+  const unfinished = countFilled(combined) < 81;
+  const markMismatches = (into: boolean[][]) => {
     for (let r = 0; r < 9; r++) {
       for (let c = 0; c < 9; c++) {
         if (givens[r][c] != null || entries[r][c] == null) continue;
-        if (entries[r][c] !== solved[r][c]) {
-          wrong[r][c] = true;
-          mismatch = true;
-        }
+        if (entries[r][c] !== solved[r][c]) into[r][c] = true;
       }
     }
-    if (!mismatch) {
-      return { kind: "correct", reason: unfinished ? "incomplete" : null, wrong: blankMask(), open };
-    }
-    return { kind: "incorrect", reason: "mismatch", wrong, open };
+  };
+
+  if (dup) {
+    const marked = dup.wrong.map((row) => row.slice());
+    markMismatches(marked);
+    return { kind: "incorrect", reason: "duplicate", note: dup.note, wrong: marked, open };
   }
 
-  const clashes = conflictCells(combined);
-  let mismatch = false;
-  for (let r = 0; r < 9; r++) {
-    for (let c = 0; c < 9; c++) {
-      if (clashes[r][c] && givens[r][c] == null && entries[r][c] != null) {
-        wrong[r][c] = true;
-        mismatch = true;
-      }
-    }
-  }
-
-  if (!mismatch && solutions(combined, 1).length === 0) {
-    const cells: Array<[number, number]> = [];
-    const proposed: (Digit | null)[] = [];
-    for (let r = 0; r < 9; r++) {
-      for (let c = 0; c < 9; c++) {
-        cells.push([r, c]);
-        proposed.push(givens[r][c] ?? entries[r][c]);
-      }
-    }
-    markCulprits(givens, cells, proposed, wrong);
-    mismatch = anyMarked(wrong);
-  }
-
-  if (!mismatch) {
+  markMismatches(wrong);
+  if (!anyMarked(wrong)) {
     return { kind: "correct", reason: unfinished ? "incomplete" : null, wrong: blankMask(), open };
   }
   return { kind: "incorrect", reason: "mismatch", wrong, open };

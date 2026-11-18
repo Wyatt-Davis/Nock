@@ -16,6 +16,7 @@ import {
   isDigit,
   isGrid,
   listDuplicateGroups,
+  releaseAnswerClue,
   repairEntries,
   solutions,
   unitCells,
@@ -786,9 +787,9 @@ export function Proofgrid() {
     move(r, c, 1);
   }
 
-  function commitAnswerClue(r: number, c: number, digit: Digit, advance = true) {
+  function commitAnswerClue(r: number, c: number, digit: Digit, advance = true): boolean {
     const now = live.current;
-    if (now.placing === "clues") return;
+    if (now.placing === "clues") return false;
     const next = applyAnswerClue(now.givens, now.entries, r, c, digit);
     if (next.changed) {
       remember({ applyGivens: true, restorePlacing: true });
@@ -797,9 +798,41 @@ export function Proofgrid() {
       setEntries(next.entries);
     }
     if (advance) move(r, c, 1);
+    return next.changed;
   }
 
-  /** Shift+click promotes a typed answer to a clue. Empty cells and clues only select. */
+  function demoteAnswerClue(r: number, c: number) {
+    const now = live.current;
+    if (now.placing === "clues") return false;
+    const next = releaseAnswerClue(now.givens, now.entries, r, c);
+    if (!next.changed) return false;
+    remember({ applyGivens: true, restorePlacing: true });
+    live.current = { ...now, givens: next.givens, entries: next.entries };
+    setGivens(next.givens);
+    setEntries(next.entries);
+    return true;
+  }
+
+  function refreshShownCheck() {
+    if (!revealed) return;
+    const now = live.current;
+    if (now.placing === "clues") return;
+    const next =
+      now.mode === "full"
+        ? checkSolution(now.givens, now.entries)
+        : now.mode === "progress"
+          ? checkProgress(now.givens, now.entries)
+          : checkUnit(now.givens, now.entries, now.unitKind, now.unitIndex);
+    setVerdict(next);
+    setRevealed(true);
+    setSolveNote(null);
+    setMarkSolved(false);
+    setUnitFocus(now.mode === "unit");
+    setUnitSolved(now.mode === "unit" && next.kind === "correct");
+    pinResultUnit();
+  }
+
+  /** Shift+click toggles a typed answer and a clue. An empty cell only selects. */
   function onCellPointerDown(event: ReactPointerEvent<HTMLInputElement>, r: number, c: number) {
     const shiftClick = event.shiftKey && event.button === 0;
     if (!shiftClick) {
@@ -810,13 +843,22 @@ export function Proofgrid() {
     event.preventDefault();
     dropSelection();
     const now = live.current;
+    const given = now.givens[r][c];
     const entry = now.entries[r][c];
-    if (now.givens[r][c] == null && entry != null) {
-      if (now.placing === "clues") toggleResponse(r, c);
-      else commitAnswerClue(r, c, entry, false);
+    let toggled = false;
+    if (now.placing === "clues") {
+      if (given != null || entry != null) {
+        toggleResponse(r, c);
+        toggled = true;
+      }
+    } else if (given != null) {
+      toggled = demoteAnswerClue(r, c);
+    } else if (entry != null) {
+      toggled = commitAnswerClue(r, c, entry, false);
     }
     focusAt(r, c);
     chooseUnit(r, c);
+    if (toggled) refreshShownCheck();
   }
 
   function onCellMouseDown(event: ReactMouseEvent<HTMLInputElement>, r: number, c: number) {

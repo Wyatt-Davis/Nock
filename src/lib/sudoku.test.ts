@@ -7,6 +7,7 @@ import {
   advancePastClues,
   arrowStep,
   applyAnswerClue,
+  releaseAnswerClue,
   checkFull,
   checkProgress,
   checkSolution,
@@ -311,6 +312,27 @@ describe("sudoku checker", () => {
     givens[0][1] = 8;
     const placed = applyAnswerClue(givens, entries, 0, 0, 5);
     assert.deepEqual(advancePastClues(placed.givens, 0, 0, 1), [0, 3]);
+  });
+
+  it("turns a clue back into the same answer", () => {
+    const givens = emptyGrid();
+    const entries = emptyGrid();
+    givens[0][0] = 4;
+    entries[1][1] = 2;
+    const released = releaseAnswerClue(givens, entries, 0, 0);
+    assert.equal(released.changed, true);
+    assert.equal(released.givens[0][0], null);
+    assert.equal(released.entries[0][0], 4);
+    assert.equal(released.entries[1][1], 2);
+    assert.notEqual(released.givens, givens);
+    assert.notEqual(released.entries, entries);
+    const again = releaseAnswerClue(released.givens, released.entries, 0, 0);
+    assert.equal(again.changed, false);
+    assert.equal(again.givens, released.givens);
+    assert.equal(checkProgress(released.givens, released.entries).note, "Add clues to check");
+    const restored = applyAnswerClue(released.givens, released.entries, 0, 0, 4);
+    assert.equal(restored.givens[0][0], 4);
+    assert.equal(restored.entries[0][0], null);
   });
 
   it("flags contradictory clues", () => {

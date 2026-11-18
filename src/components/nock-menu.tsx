@@ -25,7 +25,7 @@ const GUIDE: Array<{ title: string; body: string }> = [
 const HOTKEYS: Array<{ keys: string; action: string; gapBefore?: boolean }> = [
   { keys: "1–9", action: "Enter answer" },
   { keys: "Shift+1–9", action: "Enter clue" },
-  { keys: "Shift+Click", action: "Answer to clue" },
+  { keys: "Shift+Click", action: "Toggle clue / answer" },
   { keys: "Backspace", action: "Clear answer / step back" },
   { keys: "Shift+Backspace", action: "Remove clue" },
   { keys: "Space", action: "Next cell / convert in edit" },

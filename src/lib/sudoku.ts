@@ -57,6 +57,22 @@ export function applyAnswerClue(
   return { givens: nextGivens, entries: nextEntries, changed: true };
 }
 
+/** Turn a clue back into an answer of the same digit. No-op when the cell is not a clue. */
+export function releaseAnswerClue(
+  givens: Grid,
+  entries: Grid,
+  r: number,
+  c: number,
+): { givens: Grid; entries: Grid; changed: boolean } {
+  const digit = givens[r][c];
+  if (digit == null) return { givens, entries, changed: false };
+  const nextGivens = cloneGrid(givens);
+  const nextEntries = cloneGrid(entries);
+  nextGivens[r][c] = null;
+  nextEntries[r][c] = digit;
+  return { givens: nextGivens, entries: nextEntries, changed: true };
+}
+
 /** Remove a clue. No-op when the cell is not a clue. */
 export function clearAnswerClue(givens: Grid, r: number, c: number): { givens: Grid; changed: boolean } {
   if (givens[r][c] == null) return { givens, changed: false };

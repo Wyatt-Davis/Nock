@@ -23,21 +23,27 @@ const PUZZLE = [
   "385761429",
 ];
 
-/** Same scatter as the desktop header, spread across a 1200×630 card. */
-const BOARDS = [
-  { x: -28, y: -36, rotate: -12, opacity: 0.35 },
-  { x: 24, y: 508, rotate: 8, opacity: 0.3 },
-  { x: 210, y: -22, rotate: 10, opacity: 0.25 },
-  { x: 310, y: 512, rotate: -7, opacity: 0.35 },
-  { x: 500, y: -48, rotate: -5, opacity: 0.25 },
-  { x: 590, y: 500, rotate: 9, opacity: 0.3 },
-  { x: 860, y: -18, rotate: 12, opacity: 0.25 },
-  { x: 760, y: 508, rotate: -10, opacity: 0.35 },
-  { x: 1088, y: -34, rotate: -8, opacity: 0.3 },
-  { x: 1120, y: 470, rotate: 7, opacity: 0.28 },
-  { x: -46, y: 230, rotate: 14, opacity: 0.22 },
-  { x: 1110, y: 210, rotate: -11, opacity: 0.24 },
-];
+const ANGLES = [-12, 8, -7, 11, -5, 14, -9, 6, -13, 10, 4, -8, 12, -4, 9, -11, 7, -6, 13, -10, 5, -14, 3, -3];
+
+/** Large boards stepped across the whole frame, including behind the title. */
+function boardPlacements() {
+  const items = [];
+  let n = 0;
+  for (let row = 0; row < 4; row++) {
+    const y = -130 + row * 215;
+    const xOff = row % 2 === 0 ? -70 : 55;
+    for (let col = 0; col < 6; col++) {
+      items.push({
+        x: xOff + col * 230 + ((n * 7) % 9) - 4,
+        y: y + ((n * 5) % 7) - 3,
+        rotate: ANGLES[n % ANGLES.length],
+        opacity: 0.18 + (n % 5) * 0.02,
+      });
+      n += 1;
+    }
+  }
+  return items;
+}
 
 async function latinFace(family) {
   const css = await fetch(FONT_CSS, { headers: { "user-agent": FONT_UA } }).then((response) => {
@@ -59,8 +65,8 @@ async function latinFace(family) {
 }
 
 function miniBoard(cell) {
-  const gap = 1.4;
-  const pad = 1.4;
+  const gap = cell * 0.12;
+  const pad = gap;
   const box = cell * 3 + gap * 2;
   const size = box * 3 + gap * 2 + pad * 2;
   let boxes = "";
@@ -86,20 +92,32 @@ function miniBoard(cell) {
 }
 
 function svg(shrikhand, fredoka) {
-  const board = miniBoard(12);
-  const boards = BOARDS.map(
-    (item) =>
-      `<g opacity="${item.opacity}" transform="translate(${item.x} ${item.y}) rotate(${item.rotate} ${board.size / 2} ${board.size / 2})">${board.markup}</g>`,
-  ).join("");
+  const board = miniBoard(28);
+  const boards = boardPlacements()
+    .map(
+      (item) =>
+        `<g opacity="${item.opacity}" transform="translate(${item.x} ${item.y}) rotate(${item.rotate} ${board.size / 2} ${board.size / 2})">${board.markup}</g>`,
+    )
+    .join("");
+  console.log(`[nock] board ${Math.round(board.size)}px`);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
 <style>
 ${shrikhand}
 ${fredoka}
 </style>
+<defs>
+  <radialGradient id="titleGlow" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#1a0b24" stop-opacity="0.94"/>
+    <stop offset="42%" stop-color="#1a0b24" stop-opacity="0.78"/>
+    <stop offset="72%" stop-color="#1a0b24" stop-opacity="0.28"/>
+    <stop offset="100%" stop-color="#1a0b24" stop-opacity="0"/>
+  </radialGradient>
+</defs>
 <rect width="1200" height="630" fill="#1a0b24"/>
 ${boards}
-<text x="600" y="332" text-anchor="middle" dominant-baseline="central" font-family="Shrikhand" font-size="148" fill="#f6c453" style="filter:drop-shadow(0 0 10px #1a0b24)">Nock</text>
+<ellipse cx="600" cy="324" rx="430" ry="168" fill="url(#titleGlow)"/>
+<text x="600" y="332" text-anchor="middle" dominant-baseline="central" font-family="Shrikhand" font-size="148" fill="#f6c453" style="filter:drop-shadow(0 0 18px #1a0b24)">Nock</text>
 </svg>`;
 }
 

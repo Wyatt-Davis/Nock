@@ -202,10 +202,6 @@ function presentVerdict(
   }
   if (wrongs.length > 1) return { text: "Wrong numbers in highlighted cells", mark };
   if (wrongs.length === 1) return plain("Incorrect");
-  if (mode === "full" && empties.length > 0) {
-    const text = empties.length === 1 ? "Empty cell" : `${empties.length} empty cells`;
-    return { text, mark };
-  }
   if (empties.length > 1) return { text: "Highlighted cells are empty", mark };
   if (empties.length === 1) return { text: "Highlighted cell is empty", mark };
   return plain("Incorrect");
@@ -1042,8 +1038,10 @@ export function Proofgrid() {
   const toast = solveNote === "Solved" ? "Solved" : copy ?? solveNote;
   const tone = toast ? resultTone(toast) : null;
   const noClueCheck = mode === "progress" && verdict?.note === "Add clues to check";
+  const solutionGaps = mode === "full" && verdict?.reason === "incomplete";
   const showWrong = revealed && verdict != null && verdict.kind !== "correct" && !noClueCheck;
-  const showRight = revealed && verdict != null && (verdict.kind === "correct" || verdict.kind === "incorrect") && !noClueCheck;
+  const showRight =
+    revealed && verdict != null && (verdict.kind === "correct" || verdict.kind === "incorrect") && !noClueCheck && !solutionGaps;
   const emptyBoard = mode === "progress" && toast === "All cells empty";
 
   return (

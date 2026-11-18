@@ -50,17 +50,17 @@
 
 | Key | Action |
 | --- | --- |
+| 1–9 | Enter answer |
+| Shift+1–9 | Enter clue |
+| Backspace | Clear answer / step back |
+| Shift+Backspace | Remove clue |
+| Space | Next cell / convert in edit |
+| ← ↑ → ↓ | Move |
 | E | Edit clues |
 | D | Done |
 | U | Undo |
 | C | Clear answers |
 | R | Reset board |
-| ← ↑ → ↓ | Move in the grid |
-| Space | Next cell / convert filled in edit |
-| Backspace | Clear or step back |
-| Shift+Backspace | Removes clue |
-| 1–9 | Enters digits into board |
-| Shift+1–9 | Enters digit as clue |
 
 ## Privacy
 

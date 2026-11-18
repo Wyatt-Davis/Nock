@@ -740,10 +740,18 @@ function countFilled(grid: Grid): number {
 }
 
 /**
- * Solution mode. Bad clues stay "no solution" or a duplicate.
- * A wrong filled answer, with the clues themselves fine, is incorrect.
+ * Solution mode. Empty cells are reported first, and alone.
+ * A finished grid keeps the previous checks: bad clues stay "no solution" or a
+ * duplicate, and a wrong filled answer, with the clues themselves fine, is incorrect.
  */
 export function checkSolution(givens: Grid, entries: Grid): Verdict {
+  const combined = mergeProgress(givens, entries);
+  if (countFilled(combined) < 81) {
+    const wrong = blankMask();
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (combined[r][c] == null) wrong[r][c] = true;
+    return { kind: "incorrect", reason: "incomplete", note: "Empty cells", wrong, open: blankMask() };
+  }
+
   const clueDup = duplicateReport(givens);
   if (clueDup) {
     return { kind: "incorrect", reason: "duplicate", note: clueDup.note, wrong: clueDup.wrong, open: blankMask() };
@@ -753,57 +761,29 @@ export function checkSolution(givens: Grid, entries: Grid): Verdict {
     return { kind: "incorrect", reason: "nosolution", note: "No solution", wrong: blankMask(), open: blankMask() };
   }
 
-  const combined = mergeProgress(givens, entries);
   const dup = duplicateReport(combined);
   if (dup) {
     return { kind: "incorrect", reason: "duplicate", note: dup.note, wrong: dup.wrong, open: blankMask() };
   }
 
-  const wrong = blankMask();
   if (found.length === 1) {
     const solved = found[0];
+    const wrong = blankMask();
     let mismatch = false;
-    let incomplete = false;
     for (let r = 0; r < 9; r++) {
       for (let c = 0; c < 9; c++) {
         if (givens[r][c] != null) continue;
-        const value = entries[r][c];
-        if (value == null) {
-          incomplete = true;
-          continue;
-        }
-        if (value !== solved[r][c]) {
+        if (entries[r][c] !== solved[r][c]) {
           wrong[r][c] = true;
           mismatch = true;
         }
       }
     }
     if (mismatch) return { kind: "incorrect", reason: "mismatch", wrong, open: blankMask() };
-    if (incomplete) {
-      for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (combined[r][c] == null) wrong[r][c] = true;
-      return { kind: "incorrect", reason: "incomplete", note: "Empty cells", wrong, open: blankMask() };
-    }
     return { kind: "correct", reason: null, wrong: blankMask(), open: blankMask() };
   }
 
-  if (countFilled(combined) === 81) return checkFull(combined);
-
-  if (solutions(combined, 1).length === 0) {
-    const cells: Array<[number, number]> = [];
-    const proposed: (Digit | null)[] = [];
-    for (let r = 0; r < 9; r++) {
-      for (let c = 0; c < 9; c++) {
-        cells.push([r, c]);
-        proposed.push(givens[r][c] ?? entries[r][c]);
-      }
-    }
-    markCulprits(givens, cells, proposed, wrong);
-    if (anyMarked(wrong)) return { kind: "incorrect", reason: "mismatch", wrong, open: blankMask() };
-    return { kind: "incorrect", reason: "nosolution", note: "No solution", wrong: blankMask(), open: blankMask() };
-  }
-
-  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (combined[r][c] == null) wrong[r][c] = true;
-  return { kind: "incorrect", reason: "incomplete", note: "Empty cells", wrong, open: blankMask() };
+  return checkFull(combined);
 }
 
 export const NO_UNIQUE_SOLUTION = "Clues have no unique solution";

@@ -22,18 +22,18 @@ const GUIDE: Array<{ title: string; body: string }> = [
   { title: "Reset", body: "Clears the entire board." },
 ];
 
-const HOTKEYS: Array<[string, string]> = [
-  ["E", "Edit clues"],
-  ["D", "Done"],
-  ["U", "Undo"],
-  ["C", "Clear answers"],
-  ["R", "Reset board"],
-  ["← ↑ → ↓", "Move in the grid"],
-  ["Space", "Next cell / convert filled in edit"],
-  ["Backspace", "Clear or step back"],
-  ["Shift+Backspace", "Removes clue"],
-  ["1–9", "Enters digits into board"],
-  ["Shift+1–9", "Enters digit as clue"],
+const HOTKEYS: Array<{ keys: string; action: string; gapBefore?: boolean }> = [
+  { keys: "1–9", action: "Enter answer" },
+  { keys: "Shift+1–9", action: "Enter clue" },
+  { keys: "Backspace", action: "Clear answer / step back" },
+  { keys: "Shift+Backspace", action: "Remove clue" },
+  { keys: "Space", action: "Next cell / convert in edit" },
+  { keys: "← ↑ → ↓", action: "Move" },
+  { keys: "E", action: "Edit clues", gapBefore: true },
+  { keys: "D", action: "Done" },
+  { keys: "U", action: "Undo", gapBefore: true },
+  { keys: "C", action: "Clear answers" },
+  { keys: "R", action: "Reset board" },
 ];
 
 function layout(rect: DOMRect) {
@@ -190,11 +190,14 @@ export function NockMenu({
               ))}
             </ul>
           ) : panel === "hotkeys" ? (
-            <ul className="mt-3 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
-              {HOTKEYS.map(([keys, action]) => (
-                <li key={keys} className="flex items-baseline justify-between gap-3 text-sm leading-snug whitespace-nowrap">
-                  <span className="font-semibold text-line">{keys}</span>
-                  <span className="text-right text-fg">{action}</span>
+            <ul className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+              {HOTKEYS.map((item, index) => (
+                <li
+                  key={item.keys}
+                  className={`flex items-baseline justify-between gap-3 text-sm leading-snug whitespace-nowrap ${index === 0 ? "" : item.gapBefore ? "mt-3" : "mt-1.5"}`}
+                >
+                  <span className="font-semibold text-line">{item.keys}</span>
+                  <span className="text-right text-fg">{item.action}</span>
                 </li>
               ))}
             </ul>

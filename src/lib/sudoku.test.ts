@@ -416,23 +416,96 @@ describe("sudoku checker", () => {
     if (!clash.ok) assert.match(clash.error, /Duplicate 5 in Row 1/);
   });
 
-  it("calls a wrong solution-mode answer incorrect when the clues are fine", () => {
+  it("reports only empty cells in solution mode until the grid is full", () => {
+    const givens = clues();
+    const solved = solutions(givens, 1)[0];
+    const entries = gridFromDigits([]);
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) if (givens[r][c] == null) entries[r][c] = solved[r][c];
+    }
+    entries[8][0] = null;
+    entries[0][2] = 1;
+    entries[0][3] = 5;
+    const one = checkSolution(givens, entries);
+    assert.equal(one.kind, "incorrect");
+    assert.equal(one.reason, "incomplete");
+    assert.equal(one.note, "Empty cells");
+    assert.equal(one.wrong[8][0], true);
+    assert.equal(one.wrong[0][2], false);
+    assert.equal(one.wrong[0][3], false);
+    assert.equal(one.wrong[0][0], false);
+    assert.equal(one.wrong.flat().filter(Boolean).length, 1);
+
+    entries[8][1] = null;
+    const several = checkSolution(givens, entries);
+    assert.equal(several.reason, "incomplete");
+    assert.equal(several.wrong[8][0], true);
+    assert.equal(several.wrong[8][1], true);
+    assert.equal(several.wrong[0][2], false);
+    assert.equal(several.wrong[0][3], false);
+    assert.equal(several.wrong[0][0], false);
+    assert.equal(several.wrong.flat().filter(Boolean).length, 2);
+
+    const cluesOnly = checkSolution(givens, gridFromDigits([]));
+    assert.equal(cluesOnly.reason, "incomplete");
+    assert.equal(cluesOnly.wrong.flat().filter(Boolean).length, 81 - givens.flat().filter((cell) => cell != null).length);
+    assert.equal(cluesOnly.wrong[0][0], false);
+    assert.equal(cluesOnly.wrong[0][2], true);
+
+    entries[8][0] = solved[8][0];
+    entries[8][1] = solved[8][1];
+    const filled = checkSolution(givens, entries);
+    assert.equal(filled.reason, "duplicate");
+    assert.equal(filled.note, "Duplicate 5 in Row 1");
+    assert.equal(filled.wrong[0][0], true);
+    assert.equal(filled.wrong[0][3], true);
+    assert.equal(filled.wrong[8][0], false);
+
+    entries[0][2] = solved[0][2];
+    entries[0][3] = solved[0][3];
+    const correct = checkSolution(givens, entries);
+    assert.equal(correct.kind, "correct");
+    assert.equal(correct.reason, null);
+    assert.equal(correct.wrong.some((row) => row.some(Boolean)), false);
+  });
+
+  it("does not report clue conflicts in solution mode while any cell is empty", () => {
+    const givens = gridFromDigits([]);
+    givens[0][0] = 5;
+    givens[0][1] = 5;
+    const open = checkSolution(givens, gridFromDigits([]));
+    assert.equal(open.reason, "incomplete");
+    assert.notEqual(open.reason, "duplicate");
+    assert.equal(open.wrong[0][0], false);
+    assert.equal(open.wrong[0][1], false);
+    assert.equal(open.wrong[0][2], true);
+    assert.equal(open.wrong.flat().filter(Boolean).length, 79);
+
+    const entries = gridFromDigits([]);
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (givens[r][c] == null) entries[r][c] = 1;
+    const filled = checkSolution(givens, entries);
+    assert.equal(filled.reason, "duplicate");
+    assert.equal(filled.wrong[0][0], true);
+    assert.equal(filled.wrong[0][1], true);
+  });
+
+  it("still grades a wrong filled answer once solution mode has no empty cells", () => {
     const puzzle = "003020600900305001001806400008102900700000008006708200002609500800203009005010300";
     const givens = gridFromDigits(parseDigits(puzzle));
+    const solved = solutions(givens, 1)[0];
     const entries = gridFromDigits([]);
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (givens[r][c] == null) entries[r][c] = solved[r][c];
     entries[0][0] = 5;
     const verdict = checkSolution(givens, entries);
     assert.equal(verdict.kind, "incorrect");
-    assert.equal(verdict.reason, "mismatch");
+    assert.notEqual(verdict.reason, "incomplete");
     assert.notEqual(verdict.reason, "nosolution");
     assert.equal(verdict.wrong[0][0], true);
-    assert.equal(verdict.wrong[0][1], false);
+    assert.equal(verdict.wrong.some((row) => row.some(Boolean)), true);
 
-    const solved = solutions(givens, 1)[0];
     entries[0][0] = solved[0][0];
-    const partial = checkSolution(givens, entries);
-    assert.equal(partial.reason, "incomplete");
-    assert.equal(partial.wrong[0][0], false);
+    const correct = checkSolution(givens, entries);
+    assert.equal(correct.kind, "correct");
   });
 
   it("does not judge entries when a partial grid has no clues", () => {
